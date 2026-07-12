@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
-  name: {
+  fullName: {
     type: String,
-    required: [true, 'Please add a name'],
+    required: [true, 'Please add a full name'],
     trim: true
   },
   email: {
@@ -29,10 +29,12 @@ const UserSchema = new mongoose.Schema({
     enum: ['Admin', 'Asset Manager', 'Department Head', 'Employee'],
     default: 'Employee'
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  isActive: {
+    type: Boolean,
+    default: true
   }
+}, {
+  timestamps: true
 });
 
 // Encrypt password using bcrypt before saving

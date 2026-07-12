@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { 
-  FiUser, FiShield, FiTrendingUp, FiLayers, 
+  FiUser, FiUsers, FiShield, FiTrendingUp, FiLayers, 
   FiCheckCircle, FiAlertCircle, FiPlus, FiClock, FiMail
 } from 'react-icons/fi';
 
@@ -53,7 +53,7 @@ const Dashboard = () => {
             {user?.role} Workspace
           </span>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-100 tracking-tight">
-            Welcome back, {user?.name}!
+            Welcome back, {user?.fullName || user?.name}!
           </h2>
           <p className="text-slate-400 text-xs sm:text-sm max-w-2xl leading-relaxed">
             This console is configured for managing and allocating enterprise assets. Browse your custom dashboard panels below based on your role privileges.
@@ -78,7 +78,7 @@ const Dashboard = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Name</p>
-                <p className="text-xs text-slate-200 truncate">{user?.name}</p>
+                <p className="text-xs text-slate-200 truncate">{user?.fullName || user?.name}</p>
               </div>
             </div>
 

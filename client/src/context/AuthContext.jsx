@@ -5,6 +5,9 @@ export const AuthContext = createContext();
 
 const API_URL = 'http://localhost:5000/api';
 
+// Enable cookies (credentials) globally for Axios requests
+axios.defaults.withCredentials = true;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -16,9 +19,32 @@ export const AuthProvider = ({ children }) => {
       const storedUser = localStorage.getItem('user');
       
       if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
         axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        try {
+          // Verify session cookie/token authenticity with backend
+          const res = await axios.get(`${API_URL}/auth/me`);
+          if (res.data && res.data.success) {
+            setUser(res.data.user);
+            setToken(storedToken);
+          } else {
+            // If response is invalid, clear storage
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            delete axios.defaults.headers.common['Authorization'];
+          }
+        } catch (err) {
+          // If server is offline, fall back to locally stored credentials
+          if (!err.response) {
+            console.warn('Network error: Backend server offline. Using local session data.');
+            setUser(JSON.parse(storedUser));
+            setToken(storedToken);
+          } else {
+            // Session expired or invalid on live backend
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            delete axios.defaults.headers.common['Authorization'];
+          }
+        }
       }
       setLoading(false);
     };
@@ -42,18 +68,18 @@ export const AuthProvider = ({ children }) => {
       if (!err.response) {
         console.warn('Network error: Backend server offline. Simulating local auth.');
         let role = 'Employee';
-        let name = 'Demo Employee';
+        let fullName = 'Demo Employee';
         const lowerEmail = email.toLowerCase();
         
         if (lowerEmail.startsWith('admin')) {
           role = 'Admin';
-          name = 'System Administrator';
+          fullName = 'System Administrator';
         } else if (lowerEmail.startsWith('manager')) {
           role = 'Asset Manager';
-          name = 'Asset Manager';
+          fullName = 'Asset Manager';
         } else if (lowerEmail.startsWith('head')) {
           role = 'Department Head';
-          name = 'Department Head';
+          fullName = 'Department Head';
         }
 
         if (password.length < 6) {
@@ -62,7 +88,8 @@ export const AuthProvider = ({ children }) => {
 
         const mockUserData = {
           id: 'simulated_user_id',
-          name,
+          fullName,
+          name: fullName,
           email,
           role,
           isSimulated: true
@@ -79,9 +106,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password, role) => {
+  const register = async (fullName, email, password, role) => {
     try {
-      const res = await axios.post(`${API_URL}/auth/register`, { name, email, password, role });
+      const res = await axios.post(`${API_URL}/auth/register`, { fullName, email, password, role });
       if (res.data && res.data.success) {
         const { token: userToken, user: userData } = res.data;
         localStorage.setItem('token', userToken);
@@ -99,7 +126,8 @@ export const AuthProvider = ({ children }) => {
         }
         const mockUserData = {
           id: 'simulated_user_' + Math.random().toString(36).substr(2, 9),
-          name,
+          fullName,
+          name: fullName,
           email,
           role: role || 'Employee',
           isSimulated: true
@@ -116,7 +144,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`);
+    } catch (err) {
+      console.warn('Backend logout call skipped or failed:', err.message);
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];

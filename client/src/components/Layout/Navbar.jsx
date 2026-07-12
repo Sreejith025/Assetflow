@@ -46,14 +46,14 @@ const Navbar = ({ onMenuClick }) => {
         {/* User profile and logout */}
         <div className="flex items-center gap-3">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-medium text-slate-200">{user?.name}</p>
+            <p className="text-sm font-medium text-slate-200">{user?.fullName || user?.name}</p>
             <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 mt-0.5 rounded-full border ${getRoleBadgeClass(user?.role)}`}>
               {user?.role}
             </span>
           </div>
 
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-violet-900/20">
-            {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+            {user?.fullName || user?.name ? (user.fullName || user.name).split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase() : 'U'}
           </div>
 
           <button 

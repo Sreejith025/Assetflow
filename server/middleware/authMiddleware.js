@@ -43,7 +43,8 @@ const protect = async (req, res, next) => {
       req.user = {
         _id: decoded.id,
         id: decoded.id,
-        name: decoded.name || 'Mock User',
+        fullName: decoded.fullName || decoded.name || 'Mock User',
+        name: decoded.fullName || decoded.name || 'Mock User',
         email: decoded.email,
         role: decoded.role,
         isMock: true

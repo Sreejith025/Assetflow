@@ -84,7 +84,7 @@ const Sidebar = ({ isOpen, onClose }) => {
             {user?.role ? user.role.split(' ').map(w => w[0]).join('') : 'EM'}
           </div>
           <div className="overflow-hidden">
-            <h4 className="text-xs font-semibold text-slate-300 truncate">{user?.name}</h4>
+            <h4 className="text-xs font-semibold text-slate-300 truncate">{user?.fullName || user?.name}</h4>
             <p className="text-[10px] text-slate-500 truncate mt-0.5">{user?.email}</p>
           </div>
         </div>

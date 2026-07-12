@@ -6,7 +6,7 @@ const generateToken = (user) => {
   return jwt.sign(
     { 
       id: user._id || user.id, 
-      name: user.name, 
+      fullName: user.fullName || user.name, 
       email: user.email, 
       role: user.role 
     },
@@ -15,16 +15,61 @@ const generateToken = (user) => {
   );
 };
 
+// Helper: Set cookie and send response
+const sendTokenResponse = (user, statusCode, res) => {
+  const token = generateToken(user);
+
+  const cookieOptions = {
+    expires: new Date(
+      Date.now() + (parseInt(process.env.JWT_COOKIE_EXPIRE) || 7) * 24 * 60 * 60 * 1000
+    ),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  };
+
+  res
+    .status(statusCode)
+    .cookie('token', token, cookieOptions)
+    .json({
+      success: true,
+      token,
+      user: {
+        id: user._id || user.id,
+        fullName: user.fullName || user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive !== undefined ? user.isActive : true
+      }
+    });
+};
+
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 exports.registerUser = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { fullName, email, password, role } = req.body;
 
-  if (!name || !email || !password) {
+  if (!fullName || !email || !password) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Please provide name, email, and password' 
+      message: 'Please provide full name, email, and password' 
+    });
+  }
+
+  // Simple email regex check
+  const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid email address'
+    });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 6 characters'
     });
   }
 
@@ -40,41 +85,35 @@ exports.registerUser = async (req, res) => {
       }
 
       const user = await User.create({
-        name,
+        fullName,
         email,
         password,
-        role: role || 'Employee'
+        role: role || 'Employee',
+        isActive: true
       });
 
-      const token = generateToken(user);
-      return res.status(201).json({
-        success: true,
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        }
-      });
+      return sendTokenResponse(user, 201, res);
     } else {
       // Fallback offline mock mode
       console.warn('Registering user in offline/mock mode (database offline).');
       const mockUser = {
         id: 'mock_user_' + Math.random().toString(36).substr(2, 9),
-        name,
+        fullName,
         email,
         role: role || 'Employee',
+        isActive: true,
         isMock: true
       };
-      const token = generateToken(mockUser);
-      return res.status(201).json({
-        success: true,
-        token,
-        user: mockUser
-      });
+      return sendTokenResponse(mockUser, 201, res);
     }
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      const message = Object.values(error.errors).map(val => val.message).join(', ');
+      return res.status(400).json({ success: false, message });
+    }
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, message: 'An account with this email already exists' });
+    }
     return res.status(500).json({ 
       success: false, 
       message: error.message 
@@ -106,39 +145,31 @@ exports.loginUser = async (req, res) => {
         });
       }
 
-      const token = generateToken(user);
-      return res.status(200).json({
-        success: true,
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role
-        }
-      });
+      if (!user.isActive) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been deactivated'
+        });
+      }
+
+      return sendTokenResponse(user, 200, res);
     } else {
       // Database offline mock authentication
       console.warn('Authenticating user in offline/mock mode (database offline).');
       
-      // Deduce role from email prefix for quick role simulation:
-      // admin@assetflow.com -> Admin
-      // manager@assetflow.com -> Asset Manager
-      // head@assetflow.com -> Department Head
-      // employee@assetflow.com -> Employee (default)
       let role = 'Employee';
-      let name = 'Demo Employee';
+      let fullName = 'Demo Employee';
       const lowerEmail = email.toLowerCase();
       
       if (lowerEmail.startsWith('admin')) {
         role = 'Admin';
-        name = 'System Administrator';
+        fullName = 'System Administrator';
       } else if (lowerEmail.startsWith('manager')) {
         role = 'Asset Manager';
-        name = 'Asset Manager';
+        fullName = 'Asset Manager';
       } else if (lowerEmail.startsWith('head')) {
         role = 'Department Head';
-        name = 'Department Head';
+        fullName = 'Department Head';
       }
 
       if (password.length < 6) {
@@ -150,18 +181,14 @@ exports.loginUser = async (req, res) => {
 
       const mockUser = {
         id: 'mock_user_9999',
-        name,
+        fullName,
         email,
         role,
+        isActive: true,
         isMock: true
       };
       
-      const token = generateToken(mockUser);
-      return res.status(200).json({
-        success: true,
-        token,
-        user: mockUser
-      });
+      return sendTokenResponse(mockUser, 200, res);
     }
   } catch (error) {
     return res.status(500).json({ 
@@ -171,12 +198,48 @@ exports.loginUser = async (req, res) => {
   }
 };
 
+// @desc    Log user out / clear cookie
+// @route   POST /api/auth/logout
+// @access  Public/Private
+exports.logoutUser = async (req, res) => {
+  res.cookie('token', 'none', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+};
+
 // @desc    Get current user profile
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res) => {
-  return res.status(200).json({
-    success: true,
-    user: req.user
-  });
+  try {
+    let user = req.user;
+    if (User.db.readyState === 1 && !req.user.isMock) {
+      const dbUser = await User.findById(req.user.id || req.user._id).select('-password');
+      if (dbUser) user = dbUser;
+    }
+    
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user._id || user.id,
+        fullName: user.fullName || user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive !== undefined ? user.isActive : true
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
 };

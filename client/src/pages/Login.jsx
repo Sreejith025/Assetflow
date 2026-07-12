@@ -8,7 +8,7 @@ const Login = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('Employee');
   const [submitting, setSubmitting] = useState(false);
 
@@ -17,7 +17,7 @@ const Login = () => {
 
   const handleAuth = async (e) => {
     e.preventDefault();
-    if (!email || !password || (isRegister && !name)) {
+    if (!email || !password || (isRegister && !fullName)) {
       toast.error('Please fill in all required fields.');
       return;
     }
@@ -29,7 +29,7 @@ const Login = () => {
     setSubmitting(true);
     try {
       if (isRegister) {
-        await register(name, email, password, role);
+        await register(fullName, email, password, role);
         toast.success(`Account created successfully as ${role}!`);
       } else {
         await login(email, password);
@@ -76,8 +76,8 @@ const Login = () => {
                 </div>
                 <input
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   placeholder="e.g. Alex Morgan"
                   className="w-full bg-slate-900/60 border border-slate-850 focus:border-violet-500/80 focus:ring-1 focus:ring-violet-500/80 focus:outline-none rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder-slate-600 transition-all"
                   required
