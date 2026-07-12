@@ -8,6 +8,9 @@ import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
 import Departments from './pages/Departments';
 import Assets from './pages/Assets';
+import AllocateAsset from './pages/AllocateAsset';
+import ReturnAsset from './pages/ReturnAsset';
+import AllocationHistory from './pages/AllocationHistory';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -61,6 +64,42 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Assets />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Guarded Asset Allocation Form */}
+          <Route 
+            path="/allocations/new" 
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Asset Manager']}>
+                <DashboardLayout>
+                  <AllocateAsset />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Guarded Active Allocations Actions */}
+          <Route 
+            path="/allocations/active" 
+            element={
+              <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Department Head']}>
+                <DashboardLayout>
+                  <ReturnAsset />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Guarded Allocations Log History */}
+          <Route 
+            path="/allocations/history" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AllocationHistory />
                 </DashboardLayout>
               </ProtectedRoute>
             } 

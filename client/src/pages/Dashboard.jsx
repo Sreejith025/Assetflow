@@ -1,19 +1,34 @@
 import React, { useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { 
-  FiUser, FiShield, FiTrendingUp, FiLayers, 
-  FiCheckCircle, FiAlertCircle, FiClock, FiMail,
-  FiBox, FiDollarSign
+  FiUsers, FiLayers, FiBox, FiCheckCircle, FiTool, 
+  FiAlertTriangle, FiFileText, FiRefreshCw, FiDollarSign,
+  FiUserPlus, FiPlusSquare, FiSend, FiClock, FiShield
 } from 'react-icons/fi';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { 
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
+  BarChart, Bar, XAxis, YAxis, AreaChart, Area
+} from 'recharts';
 
 const COLORS = ['#8b5cf6', '#6366f1', '#06b6d4', '#10b981', '#f59e0b'];
+const STATUS_COLORS = {
+  'Available': '#10b981',
+  'Allocated': '#06b6d4',
+  'Maintenance': '#f59e0b',
+  'Retired': '#64748b'
+};
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const isAdmin = user?.role === 'Admin';
+  const isManager = user?.role === 'Asset Manager';
+  const isDeptHead = user?.role === 'Department Head';
 
   const getRoleTheme = (role) => {
     switch (role) {
@@ -51,18 +66,67 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/assets/stats');
+        const res = await axios.get('http://localhost:5000/api/dashboard/stats');
         setStats(res.data.data);
       } catch (err) {
         console.warn('Backend server offline. Setting simulated sandbox stats.');
-        // Fallback sandbox stats for demo
         setStats({
-          statusCounts: { total: 24, available: 12, allocated: 8, maintenance: 3, retired: 1 },
+          statusCounts: {
+            total: 24,
+            available: 12,
+            allocated: 8,
+            maintenance: 3,
+            retired: 1,
+            employees: 18,
+            departments: 4,
+            pendingAllocations: 2,
+            pendingReturns: 1,
+            warrantyExpiringSoon: 4,
+            deptEmployees: 6,
+            deptAssets: 4,
+            allocatedDeptAssets: 3,
+            pendingRequests: 1
+          },
           totalValue: 32490,
+          recentAllocations: [
+            {
+              _id: '1',
+              asset: { assetTag: 'AST-0001' },
+              allocatedTo: { fullName: 'Jane Doe', email: 'jane@assetflow.com' },
+              allocationDate: '2026-07-10T10:00:00Z',
+              status: 'Allocated'
+            },
+            {
+              _id: '2',
+              asset: { assetTag: 'AST-0002' },
+              allocatedTo: { fullName: 'John Smith', email: 'john@assetflow.com' },
+              allocationDate: '2026-07-11T12:00:00Z',
+              status: 'Allocated'
+            }
+          ],
+          recentEmployees: [
+            { _id: '1', fullName: 'Alice Johnson', email: 'alice@assetflow.com', department: { name: 'Engineering' } },
+            { _id: '2', fullName: 'Bob Carter', email: 'bob@assetflow.com', department: { name: 'Operations' } }
+          ],
+          recentAssets: [
+            { _id: '1', assetTag: 'AST-0001', category: { name: 'Workstations' }, model: { manufacturer: 'Apple', name: 'MacBook Pro 16' }, status: 'Allocated' },
+            { _id: '2', assetTag: 'AST-0002', category: { name: 'Monitors' }, model: { manufacturer: 'Dell', name: 'U2723QE' }, status: 'Available' }
+          ],
           categoryDistribution: [
             { categoryName: 'Workstations', count: 14 },
             { categoryName: 'Mobile Devices', count: 7 },
             { categoryName: 'Monitors', count: 3 }
+          ],
+          statusDistribution: [
+            { name: 'Available', value: 12 },
+            { name: 'Allocated', value: 8 },
+            { name: 'Maintenance', value: 3 },
+            { name: 'Retired', value: 1 }
+          ],
+          departmentDistribution: [
+            { departmentName: 'Engineering', count: 5 },
+            { departmentName: 'Product Management', count: 2 },
+            { departmentName: 'Operations', count: 1 }
           ]
         });
       } finally {
@@ -73,9 +137,10 @@ const Dashboard = () => {
   }, []);
 
   const theme = getRoleTheme(user?.role);
+  const counts = stats?.statusCounts;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-12">
       {/* Welcome header banner */}
       <div className={`p-6 rounded-2xl bg-gradient-to-r ${theme.bg} border ${theme.border} relative overflow-hidden`}>
         <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-44 h-44 rounded-full bg-white/5 blur-3xl"></div>
@@ -87,316 +152,869 @@ const Dashboard = () => {
             Welcome back, {user?.fullName || user?.name}!
           </h2>
           <p className="text-slate-400 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            This console is configured for managing and allocating enterprise assets. Browse your custom dashboard panels below based on your role privileges.
+            Enterprise Asset Management Console. Browse operational stats, quick actions, distribution graphs, and transaction history.
           </p>
         </div>
       </div>
 
-      {/* Stats Cards Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Assets */}
-        <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Total Assets</span>
-            <span className="text-xl font-extrabold text-slate-100">{loading ? '...' : stats?.statusCounts?.total}</span>
-          </div>
-          <div className="p-3 bg-violet-500/10 text-violet-400 rounded-lg border border-violet-500/10">
-            <FiBox size={18} />
-          </div>
-        </div>
-
-        {/* Available */}
-        <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Available</span>
-            <span className="text-xl font-extrabold text-emerald-400">{loading ? '...' : stats?.statusCounts?.available}</span>
-          </div>
-          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/10">
-            <FiCheckCircle size={18} />
-          </div>
-        </div>
-
-        {/* Allocated */}
-        <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Allocated</span>
-            <span className="text-xl font-extrabold text-sky-400">{loading ? '...' : stats?.statusCounts?.allocated}</span>
-          </div>
-          <div className="p-3 bg-sky-500/10 text-sky-400 rounded-lg border border-sky-500/10">
-            <FiLayers size={18} />
-          </div>
-        </div>
-
-        {/* Total Value */}
-        <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
-          <div className="space-y-1">
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Asset Valuation</span>
-            <span className="text-xl font-extrabold text-indigo-400">
-              {loading ? '...' : `$${stats?.totalValue?.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-            </span>
-          </div>
-          <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/10">
-            <FiDollarSign size={18} />
-          </div>
-        </div>
-      </div>
-
-      {/* Grid container */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Profile Card + Category Split */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Profile Card */}
-          <div className="glass-card rounded-2xl border border-slate-800 p-6 space-y-6">
-            <div>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Session Credentials</h3>
-              <p className="text-[10px] text-slate-500 mt-1">Verified via JWT Token Header Auth</p>
-            </div>
-
-            <div className="space-y-4">
+      {/* BRANCH 1: ASSET MANAGER DASHBOARD */}
+      {isManager ? (
+        <div className="space-y-6">
+          {/* Quick Actions at Top for Asset Managers */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button
+              onClick={() => navigate('/assets')}
+              className="flex items-center justify-between bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white p-4 rounded-xl shadow-md transition-all text-left cursor-pointer"
+            >
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-850 text-slate-400">
-                  <FiUser size={15} />
+                <div className="p-2 bg-white/10 rounded-lg">
+                  <FiPlusSquare size={16} />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Name</p>
-                  <p className="text-xs text-slate-200 truncate">{user?.fullName || user?.name}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-850 text-slate-400">
-                  <FiMail size={15} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Email</p>
-                  <p className="text-xs text-slate-200 truncate">{user?.email}</p>
+                <div>
+                  <span className="text-xs font-bold block">Add New Asset</span>
+                  <span className="text-[10px] text-white/70 block mt-0.5">Register hardware tag</span>
                 </div>
               </div>
+            </button>
 
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-850 text-slate-400">
-                  <FiShield size={15} />
+            <button
+              onClick={() => navigate('/allocations/new')}
+              className="flex items-center justify-between bg-slate-900 border border-slate-800 hover:border-slate-700 p-4 rounded-xl transition-all text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3 text-slate-200">
+                <div className="p-2 bg-violet-500/10 text-violet-400 rounded-lg">
+                  <FiSend size={16} />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Assigned Role</p>
-                  <p className="text-xs text-slate-200">{user?.role}</p>
+                <div>
+                  <span className="text-xs font-bold block">Allocate Asset</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Assign asset to employee</span>
                 </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/allocations/active')}
+              className="flex items-center justify-between bg-slate-900 border border-slate-800 hover:border-slate-700 p-4 rounded-xl transition-all text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-3 text-slate-200">
+                <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                  <FiRefreshCw size={16} />
+                </div>
+                <div>
+                  <span className="text-xs font-bold block">Active Allocations</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Process returns or transfers</span>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Asset Manager Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Total Assets</span>
+                <span className="text-xl font-extrabold text-slate-100">{loading ? '...' : counts?.total}</span>
+              </div>
+              <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                <FiBox size={16} />
               </div>
             </div>
 
-            <div className="border-t border-slate-800/80 pt-4">
-              <div className="flex justify-between items-center text-[10px]">
-                <span className="text-slate-500 uppercase tracking-wider font-semibold">Connection Mode</span>
-                <span className={`flex items-center gap-1.5 font-bold ${user?.isSimulated ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${user?.isSimulated ? 'bg-amber-400' : 'bg-emerald-400'} animate-ping`}></span>
-                  {user?.isSimulated ? 'Simulated Sandbox' : 'Live Express API'}
-                </span>
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Available</span>
+                <span className="text-xl font-extrabold text-emerald-400">{loading ? '...' : counts?.available}</span>
+              </div>
+              <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                <FiCheckCircle size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Allocated</span>
+                <span className="text-xl font-extrabold text-cyan-400">{loading ? '...' : counts?.allocated}</span>
+              </div>
+              <div className="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-lg">
+                <FiBox size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Maintenance</span>
+                <span className="text-xl font-extrabold text-amber-400">{loading ? '...' : counts?.maintenance}</span>
+              </div>
+              <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-lg">
+                <FiTool size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Retired Assets</span>
+                <span className="text-xl font-extrabold text-slate-400">{loading ? '...' : counts?.retired}</span>
+              </div>
+              <div className="p-2.5 bg-slate-500/10 text-slate-405 rounded-lg">
+                <FiAlertTriangle size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Pending Allocations</span>
+                <span className="text-xl font-extrabold text-violet-400">{loading ? '...' : counts?.pendingAllocations}</span>
+              </div>
+              <div className="p-2.5 bg-violet-500/10 text-violet-400 rounded-lg">
+                <FiClock size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Pending Returns</span>
+                <span className="text-xl font-extrabold text-teal-400">{loading ? '...' : counts?.pendingReturns}</span>
+              </div>
+              <div className="p-2.5 bg-teal-500/10 text-teal-400 rounded-lg">
+                <FiRefreshCw size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-rose-500/20 bg-rose-500/5 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-rose-450 font-bold uppercase tracking-wider block">Warranty Expiring (30d)</span>
+                <span className="text-xl font-extrabold text-rose-400">{loading ? '...' : counts?.warrantyExpiringSoon}</span>
+              </div>
+              <div className="p-2.5 bg-rose-500/10 text-rose-400 rounded-lg border border-rose-500/10">
+                <FiAlertTriangle size={16} />
               </div>
             </div>
           </div>
 
-          {/* Category distribution pie chart */}
-          <div className="glass-card rounded-2xl border border-slate-800 p-5 space-y-4">
-            <div>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Category Distribution</h3>
-              <p className="text-[10px] text-slate-500 mt-1">Resource allocation by inventory category</p>
-            </div>
-
-            <div className="h-44 w-full relative flex items-center justify-center">
-              {loading ? (
-                <span className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
-              ) : stats?.categoryDistribution?.length === 0 ? (
-                <p className="text-xs text-slate-550">No assets recorded</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={stats?.categoryDistribution || []}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={65}
-                      paddingAngle={3}
-                      dataKey="count"
-                      nameKey="categoryName"
-                    >
-                      {(stats?.categoryDistribution || []).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{
-                        background: '#0f172a',
-                        border: '1px solid #1e293b',
-                        borderRadius: '8px',
-                        fontSize: '11px',
-                        color: '#f8fafc'
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+          {/* Charts (Category Pie & Status Bar side-by-side) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Assets by Category</h3>
+                <p className="text-[10px] text-slate-500 mt-1">Resource allocation by category</p>
+              </div>
+              <div className="h-48 w-full relative flex items-center justify-center">
+                {loading ? (
+                  <span className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats?.categoryDistribution || []}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="count"
+                        nameKey="categoryName"
+                      >
+                        {(stats?.categoryDistribution || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{
+                          background: '#0f172a',
+                          border: '1px solid #1e293b',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          color: '#f8fafc'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+              {!loading && stats?.categoryDistribution && (
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px]">
+                  {stats.categoryDistribution.map((entry, index) => (
+                    <div key={index} className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
+                      <span className="text-slate-450">{entry.categoryName} ({entry.count})</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
+
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Assets by Status</h3>
+                <p className="text-[10px] text-slate-500 mt-1">Allocation by physical status</p>
+              </div>
+              <div className="h-48 w-full">
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats?.statusDistribution || []} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <XAxis dataKey="name" stroke="#64748b" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{
+                          background: '#0f172a',
+                          border: '1px solid #1e293b',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          color: '#f8fafc'
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {(stats?.statusDistribution || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#8b5cf6'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tables Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="glass-card border border-slate-850 p-5 rounded-2xl space-y-3">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                <FiBox className="text-indigo-400" /> Recently Added Assets
+              </h3>
+              {loading ? (
+                <p className="text-xs text-slate-500">Loading assets...</p>
+              ) : (
+                <div className="overflow-x-auto pt-2">
+                  <table className="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-850/80 text-slate-500 uppercase tracking-wider font-bold">
+                        <th className="pb-2">Asset Tag</th>
+                        <th className="pb-2">Model</th>
+                        <th className="pb-2 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-850/40 text-slate-350">
+                      {stats?.recentAssets?.map(a => (
+                        <tr key={a._id} className="hover:bg-slate-900/10">
+                          <td className="py-2.5 font-mono font-bold text-violet-400">{a.assetTag}</td>
+                          <td className="py-2.5 text-slate-200">
+                            {a.model?.manufacturer} {a.model?.name}
+                          </td>
+                          <td className="py-2.5 text-right">
+                            <span className="inline-block text-[8px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/10 bg-emerald-500/5 text-emerald-450">
+                              {a.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="glass-card border border-slate-850 p-5 rounded-2xl space-y-3">
+              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                <FiRefreshCw className="text-violet-400" /> Recent Allocation Activity
+              </h3>
+              {loading ? (
+                <p className="text-xs text-slate-500">Loading activity...</p>
+              ) : (
+                <div className="overflow-x-auto pt-2">
+                  <table className="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-850/80 text-slate-500 uppercase tracking-wider font-bold">
+                        <th className="pb-2">Asset</th>
+                        <th className="pb-2">Assigned To</th>
+                        <th className="pb-2 text-right">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-850/40 text-slate-350">
+                      {stats?.recentAllocations?.map(a => (
+                        <tr key={a._id} className="hover:bg-slate-900/10">
+                          <td className="py-2.5 font-mono font-bold text-violet-400">{a.asset?.assetTag}</td>
+                          <td className="py-2.5 text-slate-200">
+                            {a.allocatedTo?.fullName}
+                          </td>
+                          <td className="py-2.5 text-right text-slate-500 font-mono">
+                            {a.allocationDate ? a.allocationDate.split('T')[0] : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : isDeptHead ? (
+        /* BRANCH 2: DEPARTMENT HEAD DASHBOARD */
+        <div className="space-y-6">
+          
+          {/* Department Head Cards (4 cards) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             
-            {/* Custom Legend */}
-            {!loading && stats?.categoryDistribution && (
-              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px]">
-                {stats.categoryDistribution.map((entry, index) => (
-                  <div key={index} className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
-                    <span className="text-slate-450">{entry.categoryName} ({entry.count})</span>
-                  </div>
-                ))}
+            {/* Card 1: Department Employees */}
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Department Employees</span>
+                <span className="text-xl font-extrabold text-slate-100">{loading ? '...' : counts?.deptEmployees}</span>
               </div>
-            )}
+              <div className="p-2.5 bg-violet-500/10 text-violet-400 rounded-lg">
+                <FiUsers size={16} />
+              </div>
+            </div>
+
+            {/* Card 2: Department Assets */}
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Department Assets</span>
+                <span className="text-xl font-extrabold text-indigo-400">{loading ? '...' : counts?.deptAssets}</span>
+              </div>
+              <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                <FiBox size={16} />
+              </div>
+            </div>
+
+            {/* Card 3: Allocated in Department */}
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Allocated Assets</span>
+                <span className="text-xl font-extrabold text-emerald-400">{loading ? '...' : counts?.allocatedDeptAssets}</span>
+              </div>
+              <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                <FiCheckCircle size={16} />
+              </div>
+            </div>
+
+            {/* Card 4: Pending Requests */}
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Pending Requests</span>
+                <span className="text-xl font-extrabold text-amber-400">{loading ? '...' : counts?.pendingRequests}</span>
+              </div>
+              <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-lg">
+                <FiClock size={16} />
+              </div>
+            </div>
+
           </div>
-        </div>
 
-        {/* Right Column: Action Panel */}
-        <div className="glass-card rounded-2xl border border-slate-800 p-6 lg:col-span-2 space-y-6">
-          <div className="flex justify-between items-center border-b border-slate-850 pb-4">
-            <div>
-              <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">{user?.role} Operations</h3>
-              <p className="text-[10px] text-slate-500 mt-1">Platform panels loaded via access control lists (ACL)</p>
+          {/* Charts & Lists */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Pie Chart Category split */}
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Department Asset Split</h3>
+                <p className="text-[10px] text-slate-500 mt-1">Resource allocation by inventory category</p>
+              </div>
+
+              <div className="h-48 w-full relative flex items-center justify-center">
+                {loading ? (
+                  <span className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
+                ) : stats?.categoryDistribution?.length === 0 ? (
+                  <p className="text-xs text-slate-500">No assets allocated yet</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats?.categoryDistribution || []}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="count"
+                        nameKey="categoryName"
+                      >
+                        {(stats?.categoryDistribution || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{
+                          background: '#0f172a',
+                          border: '1px solid #1e293b',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          color: '#f8fafc'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+              {!loading && stats?.categoryDistribution && (
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px]">
+                  {stats.categoryDistribution.map((entry, index) => (
+                    <div key={index} className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
+                      <span className="text-slate-450">{entry.categoryName} ({entry.count})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Department Allocation History */}
+            <div className="glass-card border border-slate-850 p-5 rounded-2xl lg:col-span-2 space-y-4 flex flex-col justify-between">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                    <FiFileText className="text-violet-500" /> Department Allocation History
+                  </h3>
+                  <p className="text-[9px] text-slate-500 mt-1">Audit log matching allocations to division staff</p>
+                </div>
+
+                {/* Quick Actions Panel */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('/allocations/history')}
+                    className="flex items-center gap-1 bg-slate-850 hover:bg-slate-800 text-slate-200 border border-slate-800 text-[10px] font-semibold py-1.5 px-3 rounded-lg cursor-pointer transition-colors"
+                  >
+                    View History
+                  </button>
+                  <button
+                    onClick={() => navigate('/allocations/active')}
+                    className="flex items-center gap-1 bg-violet-600/10 hover:bg-violet-600/20 text-violet-400 border border-violet-500/20 text-[10px] font-semibold py-1.5 px-3 rounded-lg cursor-pointer transition-colors"
+                  >
+                    Active List
+                  </button>
+                </div>
+              </div>
+
+              {loading ? (
+                <p className="text-xs text-slate-500">Loading history...</p>
+              ) : stats?.recentAllocations?.length === 0 ? (
+                <p className="text-xs text-slate-500">No department allocations logged</p>
+              ) : (
+                <div className="overflow-x-auto pt-2 flex-1">
+                  <table className="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-850/80 text-slate-500 uppercase tracking-wider font-bold">
+                        <th className="pb-2">Asset</th>
+                        <th className="pb-2">Employee</th>
+                        <th className="pb-2 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-850/40 text-slate-350">
+                      {stats.recentAllocations.map(a => (
+                        <tr key={a._id} className="hover:bg-slate-900/10">
+                          <td className="py-2.5 font-mono font-bold text-violet-400">
+                            {a.asset?.assetTag || '—'}
+                          </td>
+                          <td className="py-2.5">
+                            <span className="block font-semibold text-slate-200">{a.allocatedTo?.fullName}</span>
+                            <span className="text-[9px] text-slate-500 block">{a.allocatedTo?.email}</span>
+                          </td>
+                          <td className="py-2.5 text-right">
+                            <span className={`inline-block text-[8px] font-bold px-1.5 py-0.5 rounded border ${
+                              a.status === 'Allocated' 
+                                ? 'border-sky-500/10 bg-sky-500/5 text-sky-400' 
+                                : a.status === 'Returned'
+                                ? 'border-emerald-500/10 bg-emerald-500/5 text-emerald-400'
+                                : 'border-amber-500/10 bg-amber-500/5 text-amber-400'
+                            }`}>
+                              {a.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+          </div>
+
+        </div>
+      ) : (
+        /* BRANCH 3: DEFAULT ADMIN / OTHER DASHBOARD */
+        <div className="space-y-6">
+          
+          {/* Admin Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Total Employees</span>
+                <span className="text-xl font-extrabold text-slate-100">{loading ? '...' : counts?.employees}</span>
+              </div>
+              <div className="p-2.5 bg-violet-500/10 text-violet-400 rounded-lg">
+                <FiUsers size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Departments</span>
+                <span className="text-xl font-extrabold text-slate-100">{loading ? '...' : counts?.departments}</span>
+              </div>
+              <div className="p-2.5 bg-sky-500/10 text-sky-400 rounded-lg">
+                <FiLayers size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Total Assets</span>
+                <span className="text-xl font-extrabold text-slate-100">{loading ? '...' : counts?.total}</span>
+              </div>
+              <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                <FiBox size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Available</span>
+                <span className="text-xl font-extrabold text-emerald-450 text-emerald-450 text-emerald-450 text-emerald-400">{loading ? '...' : counts?.available}</span>
+              </div>
+              <div className="p-2.5 bg-emerald-500/10 text-emerald-450 rounded-lg">
+                <FiCheckCircle size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Allocated</span>
+                <span className="text-xl font-extrabold text-cyan-400">{loading ? '...' : counts?.allocated}</span>
+              </div>
+              <div className="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-lg">
+                <FiBox size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Maintenance</span>
+                <span className="text-xl font-extrabold text-amber-400">{loading ? '...' : counts?.maintenance}</span>
+              </div>
+              <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-lg">
+                <FiTool size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Retired</span>
+                <span className="text-xl font-extrabold text-slate-400">{loading ? '...' : counts?.retired}</span>
+              </div>
+              <div className="p-2.5 bg-slate-500/10 text-slate-450 rounded-lg">
+                <FiAlertTriangle size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Pending Allocations</span>
+                <span className="text-xl font-extrabold text-violet-400">{loading ? '...' : counts?.pendingAllocations}</span>
+              </div>
+              <div className="p-2.5 bg-violet-500/10 text-violet-400 rounded-lg">
+                <FiClock size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Pending Returns</span>
+                <span className="text-xl font-extrabold text-teal-400">{loading ? '...' : counts?.pendingReturns}</span>
+              </div>
+              <div className="p-2.5 bg-teal-500/10 text-teal-400 rounded-lg">
+                <FiRefreshCw size={16} />
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between col-span-2 sm:col-span-1">
+              <div className="space-y-1">
+                <span className="text-[9px] text-slate-505 text-slate-500 font-bold uppercase tracking-wider block">Asset Valuation</span>
+                <span className="text-md font-extrabold text-indigo-400">
+                  {loading ? '...' : `$${stats?.totalValue?.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                </span>
+              </div>
+              <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                <FiDollarSign size={16} />
+              </div>
             </div>
           </div>
 
-          {/* Admin view console */}
-          {user?.role === 'Admin' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
-                    <FiShield size={16} />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-200">System Logs</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Monitor and inspect HTTP headers, server rejections, and DB connection configurations.</p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center">
-                    <FiLayers size={16} />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-200">Access Control Manager</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Assign role variables, activate lock systems, and manage corporate registry access policies.</p>
-                </div>
+          {/* Admin Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Assets by Category</h3>
+                <p className="text-[10px] text-slate-500 mt-1">Resource allocation by category</p>
               </div>
+              <div className="h-48 w-full relative flex items-center justify-center">
+                {loading ? (
+                  <span className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={stats?.categoryDistribution || []}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="count"
+                        nameKey="categoryName"
+                      >
+                        {(stats?.categoryDistribution || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{
+                          background: '#0f172a',
+                          border: '1px solid #1e293b',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          color: '#f8fafc'
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+              {!loading && stats?.categoryDistribution && (
+                <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[10px]">
+                  {stats.categoryDistribution.map((entry, index) => (
+                    <div key={index} className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></span>
+                      <span className="text-slate-450">{entry.categoryName} ({entry.count})</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-              <div className="rounded-xl border border-slate-850 bg-slate-900/15 p-4 flex gap-3">
-                <FiAlertCircle className="text-rose-400 shrink-0 mt-0.5" size={16} />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-slate-300">Registry Note</h4>
-                  <p className="text-[10px] text-slate-500 leading-normal">
-                    Database credentials are set to MONGODB_URI. Collections are dynamically sync\'d on start.
-                  </p>
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Assets by Status</h3>
+                <p className="text-[10px] text-slate-500 mt-1">Allocation by physical status</p>
+              </div>
+              <div className="h-48 w-full">
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats?.statusDistribution || []} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <XAxis dataKey="name" stroke="#64748b" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{
+                          background: '#0f172a',
+                          border: '1px solid #1e293b',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          color: '#f8fafc'
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {(stats?.statusDistribution || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#8b5cf6'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <div>
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Department Distribution</h3>
+                <p className="text-[10px] text-slate-500 mt-1">Equipment count per company division</p>
+              </div>
+              <div className="h-48 w-full">
+                {loading ? (
+                  <div className="h-full flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-full border-2 border-violet-500/20 border-t-violet-500 animate-spin"></span>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={stats?.departmentDistribution || []} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorDeptAdminDH" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="departmentName" stroke="#64748b" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{
+                          background: '#0f172a',
+                          border: '1px solid #1e293b',
+                          borderRadius: '8px',
+                          fontSize: '11px',
+                          color: '#f8fafc'
+                        }}
+                      />
+                      <Area type="monotone" dataKey="count" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorDeptAdminDH)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Lower Admin activity columns */}
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="xl:col-span-3 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="glass-card border border-slate-850 p-4 rounded-xl space-y-3">
+                  <h4 className="text-xs font-bold text-slate-350 flex items-center gap-1.5 uppercase tracking-wide">
+                    <FiRefreshCw size={13} className="text-violet-500" /> Recent Allocations
+                  </h4>
+                  {loading ? (
+                    <p className="text-[10px] text-slate-500">Loading...</p>
+                  ) : (
+                    <div className="divide-y divide-slate-850/60 text-[10px] space-y-2.5">
+                      {stats?.recentAllocations?.map(a => (
+                        <div key={a._id} className="pt-2 flex justify-between items-start gap-1">
+                          <div>
+                            <span className="text-slate-200 font-bold block">{a.allocatedTo?.fullName}</span>
+                            <span className="text-slate-455 text-slate-450 block font-mono">Tag: {a.asset?.assetTag}</span>
+                          </div>
+                          <span className="text-slate-500 font-mono">{a.allocationDate ? a.allocationDate.split('T')[0] : '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="glass-card border border-slate-850 p-4 rounded-xl space-y-3">
+                  <h4 className="text-xs font-bold text-slate-350 flex items-center gap-1.5 uppercase tracking-wide">
+                    <FiUsers size={13} className="text-sky-500" /> Recent Registrations
+                  </h4>
+                  {loading ? (
+                    <p className="text-[10px] text-slate-500">Loading...</p>
+                  ) : (
+                    <div className="divide-y divide-slate-850/60 text-[10px] space-y-2.5">
+                      {stats?.recentEmployees?.map(e => (
+                        <div key={e._id} className="pt-2 flex justify-between items-start gap-1">
+                          <div>
+                            <span className="text-slate-200 font-bold block">{e.fullName}</span>
+                            <span className="text-slate-455 text-slate-450 block">{e.department?.name || 'No Dept'}</span>
+                          </div>
+                          <span className="bg-slate-850 text-slate-400 border border-slate-800 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider font-semibold">
+                            {e.role}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="glass-card border border-slate-850 p-4 rounded-xl space-y-3">
+                  <h4 className="text-xs font-bold text-slate-350 flex items-center gap-1.5 uppercase tracking-wide">
+                    <FiBox size={13} className="text-indigo-500" /> Recent Assets Added
+                  </h4>
+                  {loading ? (
+                    <p className="text-[10px] text-slate-500">Loading...</p>
+                  ) : (
+                    <div className="divide-y divide-slate-850/60 text-[10px] space-y-2.5">
+                      {stats?.recentAssets?.map(a => (
+                        <tr key={a._id} className="hover:bg-slate-900/10 flex justify-between items-start pt-2">
+                          <td>
+                            <span className="text-slate-200 font-bold block">{a.model?.manufacturer} {a.model?.name}</span>
+                            <span className="text-slate-455 text-slate-455 text-slate-450 block font-mono">Tag: {a.assetTag}</span>
+                          </td>
+                          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/10 px-1 rounded text-[8px] uppercase tracking-wider font-semibold">
+                            {a.status}
+                          </span>
+                        </tr>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Asset Manager view console */}
-          {user?.role === 'Asset Manager' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
-                    <FiBox size={16} />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-200">Asset Catalog</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Track global hardware lists, warranty terms, software license packages, and serial keys.</p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
-                    <FiTrendingUp size={16} />
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-200">Procurement Logs</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Audit department equipment purchase metrics, vendor details, and warehouse storage logs.</p>
-                </div>
+            {/* Quick Actions Panel */}
+            <div className="glass-card border border-slate-850 p-5 rounded-2xl space-y-4 flex flex-col justify-between">
+              <div>
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-widest">Quick Actions</h3>
+                <p className="text-[9px] text-slate-500 mt-1">Direct system configuration shortcuts</p>
               </div>
-
-              <div className="rounded-xl border border-slate-850 bg-slate-900/15 p-4 flex gap-3">
-                <FiCheckCircle className="text-violet-400 shrink-0 mt-0.5" size={16} />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-slate-300">Inventory Status</h4>
-                  <p className="text-[10px] text-slate-500 leading-normal">
-                    Use the sidebar link to navigate to the Asset Catalog where you can add, edit, or remove hardware assets and download tags.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Department Head view console */}
-          {user?.role === 'Department Head' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                    <FiCheckCircle size={16} />
+              <div className="space-y-3 flex-1 mt-4">
+                <button
+                  onClick={() => isAdmin ? navigate('/employees') : toast.error('Admin role required')}
+                  className="w-full flex items-center justify-between bg-slate-950/40 hover:bg-slate-900 border border-slate-850 p-3 rounded-xl hover:border-slate-700 transition-all text-left text-xs cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-sky-500/10 text-sky-400 rounded-lg">
+                      <FiUserPlus size={14} />
+                    </div>
+                    <div>
+                      <span className="text-slate-200 font-semibold block">Add Employee</span>
+                      <span className="text-[9px] text-slate-500">Register new staff profile</span>
+                    </div>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-200">Approval Queue</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Review asset request forms submitted by your department personnel and click to authorize.</p>
-                </div>
+                </button>
 
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                    <FiLayers size={16} />
+                <button
+                  onClick={() => isAdmin ? navigate('/departments') : toast.error('Admin role required')}
+                  className="w-full flex items-center justify-between bg-slate-950/40 hover:bg-slate-900 border border-slate-850 p-3 rounded-xl hover:border-slate-700 transition-all text-left text-xs cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-violet-500/10 text-violet-400 rounded-lg">
+                      <FiLayers size={14} />
+                    </div>
+                    <div>
+                      <span className="text-slate-200 font-semibold block">Add Department</span>
+                      <span className="text-[9px] text-slate-500">Form new company division</span>
+                    </div>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-200">Allocated Budget</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Verify and audit cost parameters, division allotments, and review resource values.</p>
-                </div>
-              </div>
+                </button>
 
-              <div className="rounded-xl border border-slate-850 bg-slate-900/15 p-4 flex gap-3">
-                <FiClock className="text-emerald-400 shrink-0 mt-0.5" size={16} />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-slate-300">Requisition Stream</h4>
-                  <p className="text-[10px] text-slate-500 leading-normal">
-                    Team request boards are locked. Requests will flow here once request endpoints are registered in Express.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Employee view console */}
-          {user?.role === 'Employee' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
-                    <FiLayers size={16} />
+                <button
+                  onClick={() => isAdmin ? navigate('/assets') : toast.error('Asset Manager role required')}
+                  className="w-full flex items-center justify-between bg-slate-950/40 hover:bg-slate-900 border border-slate-850 p-3 rounded-xl hover:border-slate-700 transition-all text-left text-xs cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
+                      <FiPlusSquare size={14} />
+                    </div>
+                    <div>
+                      <span className="text-slate-200 font-semibold block">Add Asset</span>
+                      <span className="text-[9px] text-slate-500">Insert new physical hardware</span>
+                    </div>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-200">My Handed Assets</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Check hardware configurations, serial labels, and software licenses registered to you.</p>
-                </div>
+                </button>
 
-                <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-850 space-y-2">
-                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
-                    <FiBox size={16} />
+                <button
+                  onClick={() => isAdmin ? navigate('/allocations/new') : navigate('/allocations/history')}
+                  className="w-full flex items-center justify-between bg-slate-950/40 hover:bg-slate-900 border border-slate-850 p-3 rounded-xl hover:border-slate-700 transition-all text-left text-xs cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                      <FiSend size={14} />
+                    </div>
+                    <div>
+                      <span className="text-slate-200 font-semibold block">Allocate Asset</span>
+                      <span className="text-[9px] text-slate-500">Assign devices to users</span>
+                    </div>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-200">Request Asset</h4>
-                  <p className="text-[11px] text-slate-500 leading-normal">Apply for laptops, docking stations, monitors, or developer licenses from the inventory list.</p>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-850 bg-slate-900/15 p-4 flex gap-3">
-                <FiCheckCircle className="text-sky-400 shrink-0 mt-0.5" size={16} />
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-slate-300">Personal Inventory Status</h4>
-                  <p className="text-[10px] text-slate-500 leading-normal">
-                    No active assets registered. Submit a Request form to alert your Department Head and Asset Managers for item assignment.
-                  </p>
-                </div>
+                </button>
               </div>
             </div>
-          )}
+          </div>
 
         </div>
+      )}
 
-      </div>
     </div>
   );
 };

@@ -5,7 +5,7 @@ import {
   FiGrid, FiUsers, FiSliders, FiFileText, 
   FiBox, FiTrendingUp, FiActivity,
   FiCheckSquare, FiDollarSign, FiPlusCircle, 
-  FiInbox, FiLock, FiX, FiLayers
+  FiInbox, FiLock, FiX, FiLayers, FiRefreshCw, FiRepeat
 } from 'react-icons/fi';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -24,29 +24,29 @@ const Sidebar = ({ isOpen, onClose }) => {
           { name: 'Employee Management', icon: FiUsers, path: '/employees' },
           { name: 'Department Management', icon: FiLayers, path: '/departments' },
           { name: 'Asset Catalog', icon: FiBox, path: '/assets' },
-          { name: 'System Policies', icon: FiSliders, path: '#', locked: true },
-          { name: 'Audit Logs', icon: FiFileText, path: '#', locked: true }
+          { name: 'Allocate Asset', icon: FiPlusCircle, path: '/allocations/new' },
+          { name: 'Active Allocations', icon: FiRefreshCw, path: '/allocations/active' },
+          { name: 'Allocation History', icon: FiFileText, path: '/allocations/history' }
         ];
       case 'Asset Manager':
         return [
           { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
           { name: 'Asset Catalog', icon: FiBox, path: '/assets' },
-          { name: 'Procurement Flow', icon: FiTrendingUp, path: '#', locked: true },
-          { name: 'Maintenance Log', icon: FiActivity, path: '#', locked: true }
+          { name: 'Allocate Asset', icon: FiPlusCircle, path: '/allocations/new' },
+          { name: 'Active Allocations', icon: FiRefreshCw, path: '/allocations/active' },
+          { name: 'Allocation History', icon: FiFileText, path: '/allocations/history' }
         ];
       case 'Department Head':
         return [
           { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
-          { name: 'Approval Requests', icon: FiCheckSquare, path: '#', locked: true },
-          { name: 'Budget Allocations', icon: FiDollarSign, path: '#', locked: true },
+          { name: 'Active Allocations', icon: FiRefreshCw, path: '/allocations/active' },
+          { name: 'Allocation History', icon: FiFileText, path: '/allocations/history' },
           { name: 'Department Feed', icon: FiInbox, path: '#', locked: true }
         ];
       default: // Employee
         return [
           { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
-          { name: 'My Assets', icon: FiBox, path: '#', locked: true },
-          { name: 'Request Asset', icon: FiPlusCircle, path: '#', locked: true },
-          { name: 'Helpdesk Tickets', icon: FiFileText, path: '#', locked: true }
+          { name: 'My Allocations', icon: FiBox, path: '/allocations/history' }
         ];
     }
   };

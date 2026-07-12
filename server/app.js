@@ -8,6 +8,8 @@ const employeeRoutes = require('./routes/employeeRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const modelRoutes = require('./routes/modelRoutes');
 const assetRoutes = require('./routes/assetRoutes');
+const allocationRoutes = require('./routes/allocationRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
@@ -35,6 +37,8 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/models', modelRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/allocations', allocationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
