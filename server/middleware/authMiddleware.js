@@ -5,6 +5,14 @@ const User = require('../models/User');
 // Protect routes - verify Clerk token and attach/sync user
 const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization;
+  
+  const originalNext = next;
+  next = (err) => {
+    if (req.headers['x-simulated-role'] && req.user) {
+      req.user.role = req.headers['x-simulated-role'];
+    }
+    originalNext(err);
+  };
 
   // Sandbox bypass: check if client is sending local sandbox mock token
   if (authHeader && authHeader.startsWith('Bearer simulated_jwt_token_12345')) {

@@ -27,6 +27,9 @@ export const AuthProvider = ({ children }) => {
           if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
           }
+          if (user && user.role) {
+            config.headers['x-simulated-role'] = user.role;
+          }
         } catch (err) {
           console.warn('Axios interceptor failed to fetch fresh Clerk token:', err.message);
         }
@@ -40,7 +43,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       axios.interceptors.request.eject(interceptor);
     };
-  }, [isAuthLoaded, getToken]);
+  }, [isAuthLoaded, getToken, user]);
 
   useEffect(() => {
     const syncUser = async () => {
