@@ -1,9 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 const authRoutes = require('./routes/authRoutes');
 const departmentRoutes = require('./routes/departmentRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const modelRoutes = require('./routes/modelRoutes');
+const assetRoutes = require('./routes/assetRoutes');
 
 const app = express();
 
@@ -17,10 +21,20 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Mount Clerk authentication middleware globally
+const { clerkMiddleware } = require('@clerk/express');
+app.use(clerkMiddleware());
+
+// Static folder for uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/models', modelRoutes);
+app.use('/api/assets', assetRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

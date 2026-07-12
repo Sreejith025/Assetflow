@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Employees from './pages/Employees';
 import Departments from './pages/Departments';
+import Assets from './pages/Assets';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -48,6 +49,18 @@ function App() {
               <ProtectedRoute allowedRoles={['Admin']}>
                 <DashboardLayout>
                   <Departments />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Guarded Asset Catalog Management */}
+          <Route 
+            path="/assets" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Assets />
                 </DashboardLayout>
               </ProtectedRoute>
             } 

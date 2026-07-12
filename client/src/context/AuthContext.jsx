@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import axios from 'axios';
 
 export const AuthContext = createContext();
@@ -9,152 +10,92 @@ const API_URL = 'http://localhost:5000/api';
 axios.defaults.withCredentials = true;
 
 export const AuthProvider = ({ children }) => {
+  const { isLoaded, isSignedIn, userId, getToken, signOut } = useAuth();
+  const { isLoaded: isUserLoaded, user: clerkUser } = useUser();
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-      
-      if (storedToken && storedUser) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+    // Wait until Clerk SDK is fully initialized before changing loading states
+    if (!isLoaded || !isUserLoaded) {
+      return;
+    }
+
+    const syncWithBackend = async () => {
+      if (isSignedIn && userId && clerkUser) {
         try {
-          // Verify session cookie/token authenticity with backend
+          // 1. Get JWT session token from Clerk
+          const clerkToken = await getToken();
+          setToken(clerkToken);
+          
+          // Inject Bearer token in Axios common header
+          axios.defaults.headers.common['Authorization'] = `Bearer ${clerkToken}`;
+          
+          // 2. Query backend to sync and return MongoDB user profile
           const res = await axios.get(`${API_URL}/auth/me`);
           if (res.data && res.data.success) {
             setUser(res.data.user);
-            setToken(storedToken);
-          } else {
-            // If response is invalid, clear storage
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            delete axios.defaults.headers.common['Authorization'];
           }
         } catch (err) {
-          // If server is offline, fall back to locally stored credentials
-          if (!err.response) {
-            console.warn('Network error: Backend server offline. Using local session data.');
-            setUser(JSON.parse(storedUser));
-            setToken(storedToken);
-          } else {
-            // Session expired or invalid on live backend
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            delete axios.defaults.headers.common['Authorization'];
+          console.warn('Backend sync failed. Simulating local sandbox role from Clerk metadata.');
+          
+          // Determine mock details from Clerk session profile locally
+          const email = clerkUser.primaryEmailAddress?.emailAddress || 'employee@assetflow.com';
+          const fullName = clerkUser.fullName || 'Clerk User';
+          
+          // Deduce role from email prefix for quick sandbox/offline checks
+          let role = 'Employee';
+          const lowerEmail = email.toLowerCase();
+          if (lowerEmail.startsWith('admin')) {
+            role = 'Admin';
+          } else if (lowerEmail.startsWith('manager')) {
+            role = 'Asset Manager';
+          } else if (lowerEmail.startsWith('head')) {
+            role = 'Department Head';
           }
+
+          setUser({
+            _id: `clerk_mock_${userId}`,
+            id: `clerk_mock_${userId}`,
+            fullName,
+            email,
+            role,
+            isSimulated: true
+          });
         }
+      } else {
+        // Clear auth details if signed out
+        setUser(null);
+        setToken(null);
+        delete axios.defaults.headers.common['Authorization'];
       }
       setLoading(false);
     };
-    initializeAuth();
-  }, []);
 
-  const login = async (email, password) => {
-    try {
-      const res = await axios.post(`${API_URL}/auth/login`, { email, password });
-      if (res.data && res.data.success) {
-        const { token: userToken, user: userData } = res.data;
-        localStorage.setItem('token', userToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-        axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
-        setToken(userToken);
-        setUser(userData);
-        return { success: true };
-      }
-    } catch (err) {
-      // Offline fallback: if backend is not started/running, mock authentication locally
-      if (!err.response) {
-        console.warn('Network error: Backend server offline. Simulating local auth.');
-        let role = 'Employee';
-        let fullName = 'Demo Employee';
-        const lowerEmail = email.toLowerCase();
-        
-        if (lowerEmail.startsWith('admin')) {
-          role = 'Admin';
-          fullName = 'System Administrator';
-        } else if (lowerEmail.startsWith('manager')) {
-          role = 'Asset Manager';
-          fullName = 'Asset Manager';
-        } else if (lowerEmail.startsWith('head')) {
-          role = 'Department Head';
-          fullName = 'Department Head';
-        }
-
-        if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters long.');
-        }
-
-        const mockUserData = {
-          id: 'simulated_user_id',
-          fullName,
-          name: fullName,
-          email,
-          role,
-          isSimulated: true
-        };
-        const mockToken = 'simulated_jwt_token_12345';
-        
-        localStorage.setItem('token', mockToken);
-        localStorage.setItem('user', JSON.stringify(mockUserData));
-        setToken(mockToken);
-        setUser(mockUserData);
-        return { success: true, simulated: true };
-      }
-      throw new Error(err.response?.data?.message || 'Login failed.');
-    }
-  };
-
-  const register = async (fullName, email, password, role) => {
-    try {
-      const res = await axios.post(`${API_URL}/auth/register`, { fullName, email, password, role });
-      if (res.data && res.data.success) {
-        const { token: userToken, user: userData } = res.data;
-        localStorage.setItem('token', userToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-        axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
-        setToken(userToken);
-        setUser(userData);
-        return { success: true };
-      }
-    } catch (err) {
-      if (!err.response) {
-        console.warn('Network error: Backend server offline. Simulating local registration.');
-        if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters long.');
-        }
-        const mockUserData = {
-          id: 'simulated_user_' + Math.random().toString(36).substr(2, 9),
-          fullName,
-          name: fullName,
-          email,
-          role: role || 'Employee',
-          isSimulated: true
-        };
-        const mockToken = 'simulated_jwt_token_12345';
-        
-        localStorage.setItem('token', mockToken);
-        localStorage.setItem('user', JSON.stringify(mockUserData));
-        setToken(mockToken);
-        setUser(mockUserData);
-        return { success: true, simulated: true };
-      }
-      throw new Error(err.response?.data?.message || 'Registration failed.');
-    }
-  };
+    syncWithBackend();
+  }, [isLoaded, isUserLoaded, isSignedIn, userId, clerkUser]);
 
   const logout = async () => {
+    setLoading(true);
     try {
-      await axios.post(`${API_URL}/auth/logout`);
+      await signOut();
     } catch (err) {
-      console.warn('Backend logout call skipped or failed:', err.message);
+      console.error('Clerk signOut error:', err.message);
     }
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
-    setToken(null);
     setUser(null);
+    setToken(null);
+    delete axios.defaults.headers.common['Authorization'];
+    setLoading(false);
+  };
+
+  // Keep stub methods to prevent any code execution errors in existing views
+  const login = async () => {
+    console.warn('Custom login bypassed. Clerk manages authentication flows.');
+  };
+
+  const register = async () => {
+    console.warn('Custom register bypassed. Clerk manages authentication flows.');
   };
 
   return (

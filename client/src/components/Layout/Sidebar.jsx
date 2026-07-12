@@ -23,13 +23,14 @@ const Sidebar = ({ isOpen, onClose }) => {
           { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
           { name: 'Employee Management', icon: FiUsers, path: '/employees' },
           { name: 'Department Management', icon: FiLayers, path: '/departments' },
+          { name: 'Asset Catalog', icon: FiBox, path: '/assets' },
           { name: 'System Policies', icon: FiSliders, path: '#', locked: true },
           { name: 'Audit Logs', icon: FiFileText, path: '#', locked: true }
         ];
       case 'Asset Manager':
         return [
           { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
-          { name: 'Asset Catalog', icon: FiBox, path: '#', locked: true },
+          { name: 'Asset Catalog', icon: FiBox, path: '/assets' },
           { name: 'Procurement Flow', icon: FiTrendingUp, path: '#', locked: true },
           { name: 'Maintenance Log', icon: FiActivity, path: '#', locked: true }
         ];
