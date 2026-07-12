@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import DashboardLayout from './components/Layout/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Employees from './pages/Employees';
+import Departments from './pages/Departments';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -22,6 +24,30 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Dashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Guarded Employee Management */}
+          <Route 
+            path="/employees" 
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <Employees />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Guarded Department Management */}
+          <Route 
+            path="/departments" 
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <DashboardLayout>
+                  <Departments />
                 </DashboardLayout>
               </ProtectedRoute>
             } 

@@ -1,42 +1,48 @@
 import React, { useContext } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { 
   FiGrid, FiUsers, FiSliders, FiFileText, 
   FiBox, FiTrendingUp, FiActivity,
   FiCheckSquare, FiDollarSign, FiPlusCircle, 
-  FiInbox, FiLock, FiX
+  FiInbox, FiLock, FiX, FiLayers
 } from 'react-icons/fi';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { user } = useContext(AuthContext);
 
   // Render navigation lists tailored to each role
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  // Render navigation lists tailored to each role
   const getRoleMenuItems = (role) => {
     switch (role) {
       case 'Admin':
         return [
-          { name: 'Dashboard', icon: FiGrid, path: '#', active: true },
-          { name: 'User Management', icon: FiUsers, path: '#', locked: true },
+          { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
+          { name: 'Employee Management', icon: FiUsers, path: '/employees' },
+          { name: 'Department Management', icon: FiLayers, path: '/departments' },
           { name: 'System Policies', icon: FiSliders, path: '#', locked: true },
           { name: 'Audit Logs', icon: FiFileText, path: '#', locked: true }
         ];
       case 'Asset Manager':
         return [
-          { name: 'Dashboard', icon: FiGrid, path: '#', active: true },
+          { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
           { name: 'Asset Catalog', icon: FiBox, path: '#', locked: true },
           { name: 'Procurement Flow', icon: FiTrendingUp, path: '#', locked: true },
           { name: 'Maintenance Log', icon: FiActivity, path: '#', locked: true }
         ];
       case 'Department Head':
         return [
-          { name: 'Dashboard', icon: FiGrid, path: '#', active: true },
+          { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
           { name: 'Approval Requests', icon: FiCheckSquare, path: '#', locked: true },
           { name: 'Budget Allocations', icon: FiDollarSign, path: '#', locked: true },
           { name: 'Department Feed', icon: FiInbox, path: '#', locked: true }
         ];
       default: // Employee
         return [
-          { name: 'Dashboard', icon: FiGrid, path: '#', active: true },
+          { name: 'Dashboard', icon: FiGrid, path: '/dashboard' },
           { name: 'My Assets', icon: FiBox, path: '#', locked: true },
           { name: 'Request Asset', icon: FiPlusCircle, path: '#', locked: true },
           { name: 'Helpdesk Tickets', icon: FiFileText, path: '#', locked: true }
@@ -94,30 +100,43 @@ const Sidebar = ({ isOpen, onClose }) => {
           <span className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-3">Navigation</span>
           {menuItems.map((item, idx) => {
             const Icon = item.icon;
-            return (
-              <a
-                key={idx}
-                href={item.path}
-                className={`
-                  flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group border
-                  ${item.active 
-                    ? 'bg-violet-600/10 text-violet-400 border-violet-500/20 font-semibold' 
-                    : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border-transparent'
-                  }
-                  ${item.locked ? 'cursor-not-allowed opacity-50' : ''}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon size={16} className={item.active ? 'text-violet-400' : 'text-slate-500 group-hover:text-slate-300'} />
-                  <span>{item.name}</span>
-                </div>
-                {item.locked && (
+            const isActive = currentPath === item.path;
+            
+            if (item.locked) {
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium border text-slate-500 cursor-not-allowed opacity-50 border-transparent"
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={16} className="text-slate-500" />
+                    <span>{item.name}</span>
+                  </div>
                   <div className="flex items-center gap-1 scale-90">
                     <FiLock size={10} className="text-slate-500" />
                     <span className="text-[8px] bg-slate-800 text-slate-400 border border-slate-700 px-1 py-0.2 rounded font-semibold">LOCKED</span>
                   </div>
-                )}
-              </a>
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={idx}
+                to={item.path}
+                className={`
+                  flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all group border
+                  ${isActive 
+                    ? 'bg-violet-600/10 text-violet-400 border-violet-500/20 font-semibold' 
+                    : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 border-transparent'
+                  }
+                `}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon size={16} className={isActive ? 'text-violet-400' : 'text-slate-500 group-hover:text-slate-300'} />
+                  <span>{item.name}</span>
+                </div>
+              </Link>
             );
           })}
         </nav>
