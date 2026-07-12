@@ -54,6 +54,11 @@ const AssetSchema = new mongoose.Schema({
 
 // Auto-generate Asset Tag and QR Code on Save
 AssetSchema.pre('save', async function(next) {
+  // Capture maintenance status change
+  if (this.isModified('status') && this.status === 'Maintenance') {
+    this._statusChangedToMaintenance = true;
+  }
+
   // Generate Asset Tag
   if (this.isNew || !this.assetTag) {
     try {
@@ -88,6 +93,24 @@ AssetSchema.pre('save', async function(next) {
   }
 
   next();
+});
+
+// Post-save hook to generate notifications for maintenance
+AssetSchema.post('save', async function(doc) {
+  try {
+    if (doc._statusChangedToMaintenance) {
+      const Notification = mongoose.model('Notification');
+      await Notification.create({
+        recipient: null, // Admin/Managers
+        type: 'Maintenance Approved',
+        title: 'Asset Sent to Maintenance',
+        message: `Asset ${doc.assetTag} status has been updated to Maintenance.`,
+        referenceId: doc._id
+      });
+    }
+  } catch (err) {
+    console.error('Error creating maintenance notification:', err.message);
+  }
 });
 
 module.exports = mongoose.model('Asset', AssetSchema);

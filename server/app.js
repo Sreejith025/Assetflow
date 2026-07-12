@@ -10,6 +10,9 @@ const modelRoutes = require('./routes/modelRoutes');
 const assetRoutes = require('./routes/assetRoutes');
 const allocationRoutes = require('./routes/allocationRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const settingRoutes = require('./routes/settingRoutes');
 
 const app = express();
 
@@ -39,6 +42,9 @@ app.use('/api/models', modelRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/allocations', allocationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/settings', settingRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

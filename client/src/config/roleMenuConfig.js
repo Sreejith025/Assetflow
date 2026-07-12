@@ -31,6 +31,7 @@ import {
   FiPlusCircle,
   FiUser,
   FiFileText,
+  FiBell,
 } from 'react-icons/fi';
 
 /**
@@ -39,24 +40,27 @@ import {
  */
 export const ROLE_MENU_CONFIG = {
   Admin: [
-    { name: 'Dashboard',     icon: FiGrid,       path: '/dashboard'    },
-    { name: 'Departments',   icon: FiLayers,     path: '/departments'  },
-    { name: 'Employees',     icon: FiUsers,      path: '/employees'    },
-    { name: 'Assets',        icon: FiBox,        path: '/assets'       },
-    { name: 'Categories',    icon: FiTag,        path: '/categories'   },
-    { name: 'Asset Models',  icon: FiCpu,        path: '/asset-models' },
-    { name: 'Allocations',   icon: FiRepeat,     path: '/allocations'  },
-    { name: 'Reports',       icon: FiBarChart2,  path: '/reports'      },
-    { name: 'Settings',      icon: FiSettings,   path: '/settings'     },
+    { name: 'Dashboard',     icon: FiGrid,       path: '/dashboard'     },
+    { name: 'Departments',   icon: FiLayers,     path: '/departments'   },
+    { name: 'Employees',     icon: FiUsers,      path: '/employees'     },
+    { name: 'Assets',        icon: FiBox,        path: '/assets'        },
+    { name: 'Categories',    icon: FiTag,        path: '/categories'    },
+    { name: 'Asset Models',  icon: FiCpu,        path: '/asset-models'  },
+    { name: 'Allocations',   icon: FiRepeat,     path: '/allocations'   },
+    { name: 'Reports',       icon: FiBarChart2,  path: '/reports'       },
+    { name: 'Notifications', icon: FiBell,       path: '/notifications' },
+    { name: 'Settings',      icon: FiSettings,   path: '/settings'      },
+    { name: 'Profile',       icon: FiUser,       path: '/profile'       },
   ],
 
   'Asset Manager': [
-    { name: 'Dashboard',        icon: FiGrid,       path: '/dashboard'   },
-    { name: 'Assets',           icon: FiBox,        path: '/assets'      },
-    { name: 'Categories',       icon: FiTag,        path: '/categories'  },
-    { name: 'Asset Allocation', icon: FiRepeat,     path: '/allocations' },
-    { name: 'Maintenance',      icon: FiTool,       path: '/maintenance' },
-    { name: 'Reports',          icon: FiBarChart2,  path: '/reports'     },
+    { name: 'Dashboard',        icon: FiGrid,       path: '/dashboard'     },
+    { name: 'Assets',           icon: FiBox,        path: '/assets'        },
+    { name: 'Categories',       icon: FiTag,        path: '/categories'    },
+    { name: 'Asset Allocation', icon: FiRepeat,     path: '/allocations'   },
+    { name: 'Maintenance',      icon: FiTool,       path: '/maintenance'   },
+    { name: 'Notifications',    icon: FiBell,       path: '/notifications' },
+    { name: 'Profile',          icon: FiUser,       path: '/profile'       },
   ],
 
   'Department Head': [
@@ -65,6 +69,9 @@ export const ROLE_MENU_CONFIG = {
     { name: 'Employees',          icon: FiUsers,       path: '/employees'           },
     { name: 'Allocation History', icon: FiFileText,    path: '/allocations/history' },
     { name: 'Approvals',          icon: FiCheckCircle, path: '/approvals'           },
+    { name: 'Reports',            icon: FiBarChart2,   path: '/reports'             },
+    { name: 'Notifications',      icon: FiBell,        path: '/notifications'       },
+    { name: 'Profile',            icon: FiUser,        path: '/profile'             },
   ],
 
   Employee: [
@@ -72,7 +79,14 @@ export const ROLE_MENU_CONFIG = {
     { name: 'My Assets',      icon: FiPackage,    path: '/my-assets'           },
     { name: 'My Allocations', icon: FiClipboard,  path: '/allocations/history' },
     { name: 'Request Asset',  icon: FiPlusCircle, path: '/request-asset'       },
+    { name: 'Notifications',  icon: FiBell,       path: '/notifications'       },
     { name: 'Profile',        icon: FiUser,       path: '/profile'             },
+  ],
+  'Maintenance Team': [
+    { name: 'Dashboard',      icon: FiGrid,       path: '/dashboard'   },
+    { name: 'Maintenance',    icon: FiTool,       path: '/maintenance' },
+    { name: 'Notifications',  icon: FiBell,       path: '/notifications' },
+    { name: 'Profile',        icon: FiUser,       path: '/profile'     },
   ],
 };
 

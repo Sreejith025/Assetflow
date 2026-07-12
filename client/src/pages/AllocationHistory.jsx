@@ -190,11 +190,11 @@ const AllocationHistory = () => {
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className="w-full bg-slate-950/40 border border-slate-850 focus:border-violet-500/80 focus:ring-1 focus:ring-violet-500/80 focus:outline-none rounded-xl px-3.5 py-2 text-xs text-slate-400"
           >
-            <option value="">All Statuses</option>
-            <option value="Pending Approval">Pending Approval</option>
-            <option value="Allocated">Allocated</option>
-            <option value="Returned">Returned</option>
-            <option value="Rejected">Rejected</option>
+            <option value="" className="bg-slate-900 text-slate-200">All Statuses</option>
+            <option value="Pending Approval" className="bg-slate-900 text-slate-200">Pending Approval</option>
+            <option value="Allocated" className="bg-slate-900 text-slate-200">Allocated</option>
+            <option value="Returned" className="bg-slate-900 text-slate-200">Returned</option>
+            <option value="Rejected" className="bg-slate-900 text-slate-200">Rejected</option>
           </select>
         </div>
       </div>
@@ -411,10 +411,10 @@ const AllocationHistory = () => {
                   required
                 >
                   {availableAssets.length === 0 ? (
-                    <option value="">No available assets found</option>
+                    <option value="" className="bg-slate-900 text-slate-200">No available assets found</option>
                   ) : (
                     availableAssets.map(a => (
-                      <option key={a._id} value={a._id}>
+                      <option key={a._id} value={a._id} className="bg-slate-900 text-slate-200">
                         {a.assetTag} - {a.model?.manufacturer} {a.model?.name}
                       </option>
                     ))

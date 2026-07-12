@@ -25,6 +25,7 @@ exports.getCategories = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in categoryController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -49,6 +50,7 @@ exports.getCategory = async (req, res) => {
       res.status(200).json({ success: true, data: cat });
     }
   } catch (err) {
+    console.error(`[Error in categoryController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -85,6 +87,7 @@ exports.createCategory = async (req, res) => {
       res.status(201).json({ success: true, data: newCat });
     }
   } catch (err) {
+    console.error(`[Error in categoryController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -129,6 +132,7 @@ exports.updateCategory = async (req, res) => {
       res.status(200).json({ success: true, data: currentCat });
     }
   } catch (err) {
+    console.error(`[Error in categoryController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -176,6 +180,7 @@ exports.deleteCategory = async (req, res) => {
       res.status(200).json({ success: true, message: 'Category deleted successfully' });
     }
   } catch (err) {
+    console.error(`[Error in categoryController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };

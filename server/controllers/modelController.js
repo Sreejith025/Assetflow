@@ -36,6 +36,7 @@ exports.getModels = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in modelController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -67,6 +68,7 @@ exports.getModel = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in modelController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -122,6 +124,7 @@ exports.createModel = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in modelController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -180,6 +183,7 @@ exports.updateModel = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in modelController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -227,6 +231,7 @@ exports.deleteModel = async (req, res) => {
       res.status(200).json({ success: true, message: 'Asset model deleted successfully' });
     }
   } catch (err) {
+    console.error(`[Error in modelController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };

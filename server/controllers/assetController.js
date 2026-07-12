@@ -50,11 +50,19 @@ exports.getAssets = async (req, res) => {
 
       // Model or Category filter
       if (model) {
-        query.model = model;
+        if (mongoose.Types.ObjectId.isValid(model)) {
+          query.model = model;
+        } else {
+          query.model = new mongoose.Types.ObjectId();
+        }
       } else if (category) {
-        const modelsInCategory = await AssetModel.find({ category }).select('_id');
-        const modelIds = modelsInCategory.map(m => m._id);
-        query.model = { $in: modelIds };
+        if (mongoose.Types.ObjectId.isValid(category)) {
+          const modelsInCategory = await AssetModel.find({ category }).select('_id');
+          const modelIds = modelsInCategory.map(m => m._id);
+          query.model = { $in: modelIds };
+        } else {
+          query.model = { $in: [] };
+        }
       }
 
       const pageNum = parseInt(page, 10);
@@ -148,6 +156,7 @@ exports.getAssets = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in assetController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -197,6 +206,7 @@ exports.getAsset = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in assetController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -306,6 +316,7 @@ exports.createAsset = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in assetController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -414,6 +425,7 @@ exports.updateAsset = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in assetController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -441,6 +453,7 @@ exports.deleteAsset = async (req, res) => {
       res.status(200).json({ success: true, message: 'Asset deleted successfully' });
     }
   } catch (err) {
+    console.error(`[Error in assetController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -546,6 +559,7 @@ exports.getAssetStats = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in assetController.js]:`, err.stack);
     res.status(500).json({ success: false, message: err.message });
   }
 };

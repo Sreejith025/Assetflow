@@ -33,6 +33,7 @@ const Dashboard = () => {
   const isManager = user?.role === 'Asset Manager';
   const isDeptHead = user?.role === 'Department Head';
   const isEmployee = user?.role === 'Employee';
+  const isMaintenanceTeam = user?.role === 'Maintenance Team';
 
   // Employee specific states
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -881,6 +882,144 @@ const Dashboard = () => {
 
           </div>
 
+        </div>
+      ) : isMaintenanceTeam ? (
+        /* BRANCH 5: MAINTENANCE TEAM DASHBOARD */
+        <div className="space-y-6">
+          {/* Stats Cards Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Under Maintenance', value: loading ? '…' : (stats?.statusCounts?.underMaintenance ?? 0), icon: <FiTool size={15}/>, color: 'amber' },
+              { label: 'Completed Repairs', value: loading ? '…' : (stats?.statusCounts?.completedRepairs ?? 0), icon: <FiCheckCircle size={15}/>, color: 'emerald' },
+              { label: 'Pending Repairs', value: loading ? '…' : (stats?.statusCounts?.pendingRepairs ?? 0), icon: <FiClock size={15}/>, color: 'indigo' },
+              { label: 'Retired Assets', value: loading ? '…' : (stats?.statusCounts?.retiredAssets ?? 0), icon: <FiAlertTriangle size={15}/>, color: 'slate' },
+            ].map((card, i) => (
+              <div key={i} className="glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">{card.label}</span>
+                  <span className={`text-2xl font-extrabold text-${card.color}-400`}>{card.value}</span>
+                </div>
+                <div className={`p-2.5 bg-${card.color}-500/10 text-${card.color}-400 rounded-lg`}>
+                  {card.icon}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Maintenance Quick Actions */}
+          <div className="glass-card border border-slate-850 p-4 rounded-2xl flex flex-wrap items-center gap-3">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Quick Actions:</span>
+            <button onClick={() => navigate('/maintenance')} className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/20 hover:bg-amber-500/25 transition-all duration-200 cursor-pointer">
+              <FiTool size={13} /> Update Status
+            </button>
+            <button onClick={() => navigate('/maintenance')} className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold rounded-lg bg-slate-700/40 text-slate-300 border border-slate-600/30 hover:bg-slate-700/60 transition-all duration-200 cursor-pointer">
+              <FiCheckCircle size={13} /> Resolve Repairs
+            </button>
+          </div>
+
+          {/* Maintenance Trend Chart & Failure Distribution */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Maintenance Repair Trend</span>
+              <div className="h-48 w-full">
+                {stats?.maintenanceTrend?.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={stats.maintenanceTrend} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                      <XAxis dataKey="date" stroke="#64748b" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                      <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '11px', color: '#f8fafc' }} />
+                      <Area type="monotone" dataKey="repairs" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-slate-500 text-xs text-center py-16">No monthly trend data recorded</div>
+                )}
+              </div>
+            </div>
+
+            <div className="glass-card rounded-2xl border border-slate-850 p-5 space-y-4">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Failures by Category</span>
+              <div className="h-48 w-full relative flex items-center justify-center">
+                {stats?.failureCategories?.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={stats.failureCategories} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3} dataKey="value" nameKey="name">
+                        {stats.failureCategories.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px', fontSize: '11px', color: '#f8fafc' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-slate-550 text-xs text-center py-16">No categories in maintenance</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Active Repair Schedule and History */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card border border-slate-850 p-5 rounded-2xl space-y-3">
+              <span className="text-xs font-bold text-slate-350 flex items-center gap-1.5 uppercase tracking-wide text-amber-400"><FiTool /> Active Repair Schedule</span>
+              <div className="overflow-x-auto text-[11px]">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-850 text-slate-500 uppercase tracking-wider font-bold">
+                      <th className="pb-2">Asset Tag</th>
+                      <th className="pb-2">Model</th>
+                      <th className="pb-2 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850/40 text-slate-300">
+                    {stats?.repairSchedule?.map(row => (
+                      <tr key={row._id} className="hover:bg-slate-900/10">
+                        <td className="py-2.5 font-mono font-bold text-amber-400">{row.assetTag}</td>
+                        <td className="py-2.5">{row.model?.name || row.model}</td>
+                        <td className="py-2.5 text-right">
+                          <button onClick={() => navigate('/maintenance')} className="px-2 py-1 bg-amber-600/10 text-amber-400 border border-amber-500/20 rounded font-bold text-[9px] cursor-pointer">Resolve</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!stats?.repairSchedule || stats?.repairSchedule.length === 0) && (
+                      <tr><td colSpan={3} className="py-8 text-center text-slate-500 italic">No assets undergoing repair</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="glass-card border border-slate-850 p-5 rounded-2xl space-y-3">
+              <span className="text-xs font-bold text-slate-350 flex items-center gap-1.5 uppercase tracking-wide text-emerald-400"><FiCheckCircle /> Repair History Log</span>
+              <div className="overflow-x-auto text-[11px]">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-850 text-slate-500 uppercase tracking-wider font-bold">
+                      <th className="pb-2">Asset Tag</th>
+                      <th className="pb-2">Model</th>
+                      <th className="pb-2 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850/40 text-slate-300">
+                    {stats?.repairHistory?.map(row => (
+                      <tr key={row._id} className="hover:bg-slate-900/10">
+                        <td className="py-2.5 font-mono font-bold text-slate-400">{row.assetTag}</td>
+                        <td className="py-2.5">{row.model?.name || row.model}</td>
+                        <td className="py-2.5 text-right">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                            row.status === 'Available' ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400' : 'border-slate-500/20 bg-slate-500/5 text-slate-400'
+                          }`}>{row.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!stats?.repairHistory || stats?.repairHistory.length === 0) && (
+                      <tr><td colSpan={3} className="py-8 text-center text-slate-500 italic">No historical repairs recorded</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       ) : isEmployee ? (
         /* BRANCH 3: EMPLOYEE SELF-SERVICE DASHBOARD */

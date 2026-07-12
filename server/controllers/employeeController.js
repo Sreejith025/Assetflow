@@ -103,6 +103,7 @@ exports.getEmployees = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in employeeController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -160,6 +161,7 @@ exports.getEmployee = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in employeeController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -256,6 +258,7 @@ exports.createEmployee = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in employeeController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -356,6 +359,7 @@ exports.updateEmployee = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in employeeController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -408,6 +412,7 @@ exports.deleteEmployee = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in employeeController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message

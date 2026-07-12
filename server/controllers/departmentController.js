@@ -100,6 +100,7 @@ exports.getDepartments = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in departmentController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -162,6 +163,7 @@ exports.getDepartment = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in departmentController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -242,6 +244,7 @@ exports.createDepartment = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in departmentController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -334,6 +337,7 @@ exports.updateDepartment = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in departmentController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message
@@ -385,6 +389,7 @@ exports.deleteDepartment = async (req, res) => {
       });
     }
   } catch (err) {
+    console.error(`[Error in departmentController.js]:`, err.stack);
     res.status(500).json({
       success: false,
       message: err.message

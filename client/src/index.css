@@ -3,10 +3,25 @@
 
 @import "tailwindcss";
 
+@theme {
+  --color-accent: #38bdf8;
+  --color-bg-navy: #0b1120;
+  --color-surface-slate: #111827;
+  --color-card-slate: #1f2937;
+  --color-success-green: #22c55e;
+  --color-warning-orange: #f59e0b;
+  --color-danger-red: #ef4444;
+}
+
 @layer base {
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    @apply bg-slate-950 text-slate-100 antialiased min-h-screen selection:bg-violet-500/30 selection:text-violet-200;
+    @apply bg-bg-navy text-slate-100 antialiased min-h-screen selection:bg-accent/30 selection:text-sky-200;
+  }
+
+  select option {
+    background-color: #0f172a; /* bg-slate-900 */
+    color: #f1f5f9; /* text-slate-100 */
   }
 }
 

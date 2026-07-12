@@ -27,6 +27,7 @@ import DepartmentAssets from './pages/DepartmentAssets';
 import MyAssets         from './pages/MyAssets';
 import RequestAsset     from './pages/RequestAsset';
 import Profile          from './pages/Profile';
+import Notifications    from './pages/Notifications';
 
 // ── Role constants ─────────────────────────────────────────────────────────
 const ADMIN               = ['Admin'];
@@ -88,7 +89,7 @@ function App() {
           } />
 
           <Route path="/maintenance" element={
-            <ProtectedRoute allowedRoles={ADMIN_MANAGER}>
+            <ProtectedRoute allowedRoles={['Admin', 'Asset Manager', 'Maintenance Team']}>
               <DashboardLayout><Maintenance /></DashboardLayout>
             </ProtectedRoute>
           } />
@@ -155,6 +156,12 @@ function App() {
           <Route path="/profile" element={
             <ProtectedRoute>
               <DashboardLayout><Profile /></DashboardLayout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <DashboardLayout><Notifications /></DashboardLayout>
             </ProtectedRoute>
           } />
 

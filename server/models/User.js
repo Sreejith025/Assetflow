@@ -30,7 +30,7 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['Admin', 'Asset Manager', 'Department Head', 'Employee'],
+    enum: ['Admin', 'Asset Manager', 'Department Head', 'Employee', 'Maintenance Team'],
     default: 'Employee'
   },
   department: {
@@ -48,16 +48,39 @@ const UserSchema = new mongoose.Schema({
 
 // Encrypt password using bcrypt before saving
 UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Match entered password to database hashed password
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Post-save hook to generate notifications for new employees
+UserSchema.post('save', async function(doc) {
+  try {
+    if (doc.createdAt && doc.updatedAt && doc.createdAt.getTime() === doc.updatedAt.getTime()) {
+      const Notification = mongoose.model('Notification');
+      await Notification.create({
+        recipient: doc._id,
+        type: 'New Employee Added',
+        title: 'Welcome to AssetFlow!',
+        message: `Hello ${doc.fullName}, your corporate account has been successfully registered.`,
+        referenceId: doc._id
+      });
+    }
+  } catch (err) {
+    console.error('Error creating user notification:', err.message);
+  }
+});
 
 module.exports = mongoose.model('User', UserSchema);

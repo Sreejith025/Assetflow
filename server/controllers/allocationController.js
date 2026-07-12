@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const AssetAllocation = require('../models/AssetAllocation');
 const Asset = require('../models/Asset');
 const User = require('../models/User');
@@ -80,6 +81,7 @@ exports.createAllocation = async (req, res) => {
       data: allocation
     });
   } catch (err) {
+    console.error(`[Error in allocationController.js]:`, err.stack);
     return res.status(550).json({ success: false, message: err.message });
   }
 };
@@ -133,6 +135,7 @@ exports.approveAllocation = async (req, res) => {
       data: allocation
     });
   } catch (err) {
+    console.error(`[Error in allocationController.js]:`, err.stack);
     return res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -168,6 +171,7 @@ exports.rejectAllocation = async (req, res) => {
       data: allocation
     });
   } catch (err) {
+    console.error(`[Error in allocationController.js]:`, err.stack);
     return res.status(550).json({ success: false, message: err.message });
   }
 };
@@ -214,6 +218,7 @@ exports.returnAsset = async (req, res) => {
       data: allocation
     });
   } catch (err) {
+    console.error(`[Error in allocationController.js]:`, err.stack);
     return res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -280,6 +285,7 @@ exports.transferAsset = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error(`[Error in allocationController.js]:`, err.stack);
     return res.status(550).json({ success: false, message: err.message });
   }
 };
@@ -298,14 +304,26 @@ exports.getAllocations = async (req, res) => {
 
     // Filter by specific employee (Regular employees only see their own requests)
     if (req.user.role === 'Employee') {
-      query.allocatedTo = req.user._id;
+      if (mongoose.Types.ObjectId.isValid(req.user._id)) {
+        query.allocatedTo = req.user._id;
+      } else {
+        query.allocatedTo = new mongoose.Types.ObjectId();
+      }
     } else if (employee) {
-      query.allocatedTo = employee;
+      if (mongoose.Types.ObjectId.isValid(employee)) {
+        query.allocatedTo = employee;
+      } else {
+        query.allocatedTo = new mongoose.Types.ObjectId();
+      }
     }
 
     // Filter by asset
     if (asset) {
-      query.asset = asset;
+      if (mongoose.Types.ObjectId.isValid(asset)) {
+        query.asset = asset;
+      } else {
+        query.asset = new mongoose.Types.ObjectId();
+      }
     }
 
     // Filter by status
@@ -358,6 +376,7 @@ exports.getAllocations = async (req, res) => {
       data: allocations
     });
   } catch (err) {
+    console.error(`[Error in allocationController.js]:`, err.stack);
     return res.status(500).json({ success: false, message: err.message });
   }
 };

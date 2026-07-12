@@ -1,4 +1,5 @@
 const { getAuth } = require('@clerk/express');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 // Protect routes - verify Clerk token and attach/sync user
@@ -37,6 +38,10 @@ const protect = async (req, res, next) => {
       role = 'Department Head';
       fullName = 'Department Head';
       email = 'head@assetflow.com';
+    } else if (mockToken.includes('maintenance')) {
+      role = 'Maintenance Team';
+      fullName = 'Maintenance Engineer';
+      email = 'maintenance@assetflow.com';
     }
 
     req.user = {
@@ -50,6 +55,42 @@ const protect = async (req, res, next) => {
     return next();
   }
 
+  // JWT Fallback Verification (Bearer Token or Cookie)
+  let token;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
+
+  if (token && token !== 'undefined' && !token.startsWith('sess_')) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'assetflow_super_secret_jwt_key_1234567890');
+      const dbConnected = User.db.readyState === 1;
+
+      if (dbConnected) {
+        const user = await User.findById(decoded.id).select('-password');
+        if (user) {
+          req.user = user;
+          return next();
+        }
+      } else {
+        req.user = {
+          _id: decoded.id,
+          id: decoded.id,
+          fullName: decoded.fullName,
+          email: decoded.email,
+          role: decoded.role,
+          isMock: true
+        };
+        return next();
+      }
+    } catch (jwtErr) {
+      // If verification fails, fall through to Clerk validation
+      console.warn('JWT verification failed, falling back to Clerk verification:', jwtErr.message);
+    }
+  }
+
   // Real Clerk Session Verification
   let auth;
   try {
@@ -61,7 +102,7 @@ const protect = async (req, res, next) => {
   if (!auth || !auth.userId) {
     return res.status(401).json({ 
       success: false, 
-      message: 'Not authorized to access this route, Clerk sign-in required' 
+      message: 'Not authorized to access this route, sign-in required' 
     });
   }
 
@@ -118,6 +159,8 @@ const protect = async (req, res, next) => {
         role = 'Asset Manager';
       } else if (lowerEmail.startsWith('head')) {
         role = 'Department Head';
+      } else if (lowerEmail.startsWith('maintenance')) {
+        role = 'Maintenance Team';
       }
 
       req.user = {
@@ -131,6 +174,7 @@ const protect = async (req, res, next) => {
       return next();
     }
   } catch (err) {
+    console.error('Error in protect middleware:', err.stack);
     return res.status(500).json({ 
       success: false, 
       message: err.message 

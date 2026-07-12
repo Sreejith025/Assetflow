@@ -107,6 +107,7 @@ exports.registerUser = async (req, res) => {
       return sendTokenResponse(mockUser, 201, res);
     }
   } catch (error) {
+    console.error(`[Error in authController.js]:`, error.stack);
     if (error.name === 'ValidationError') {
       const message = Object.values(error.errors).map(val => val.message).join(', ');
       return res.status(400).json({ success: false, message });
@@ -170,6 +171,9 @@ exports.loginUser = async (req, res) => {
       } else if (lowerEmail.startsWith('head')) {
         role = 'Department Head';
         fullName = 'Department Head';
+      } else if (lowerEmail.startsWith('maintenance')) {
+        role = 'Maintenance Team';
+        fullName = 'Maintenance Engineer';
       }
 
       if (password.length < 6) {
@@ -191,6 +195,7 @@ exports.loginUser = async (req, res) => {
       return sendTokenResponse(mockUser, 200, res);
     }
   } catch (error) {
+    console.error(`[Error in authController.js]:`, error.stack);
     return res.status(500).json({ 
       success: false, 
       message: error.message 
@@ -222,7 +227,7 @@ exports.getMe = async (req, res) => {
   try {
     let user = req.user;
     if (User.db.readyState === 1 && !req.user.isMock) {
-      const dbUser = await User.findById(req.user.id || req.user._id).select('-password');
+      const dbUser = await User.findById(req.user.id || req.user._id).populate('department', 'name code').select('-password');
       if (dbUser) user = dbUser;
     }
     
@@ -233,10 +238,14 @@ exports.getMe = async (req, res) => {
         fullName: user.fullName || user.name,
         email: user.email,
         role: user.role,
-        isActive: user.isActive !== undefined ? user.isActive : true
+        isActive: user.isActive !== undefined ? user.isActive : true,
+        department: user.department,
+        phone: user.phone || '+1 (555) 019-2834',
+        avatar: user.avatar || ''
       }
     });
   } catch (error) {
+    console.error(`[Error in authController.js]:`, error.stack);
     return res.status(500).json({
       success: false,
       message: error.message

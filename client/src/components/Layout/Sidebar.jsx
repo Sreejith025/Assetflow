@@ -10,6 +10,7 @@ const ROLE_STYLES = {
   'Asset Manager':  { badge: 'bg-cyan-500/20   text-cyan-300   border-cyan-500/30',    dot: 'bg-cyan-400'   },
   'Department Head':{ badge: 'bg-amber-500/20  text-amber-300  border-amber-500/30',   dot: 'bg-amber-400'  },
   Employee:         { badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', dot: 'bg-emerald-400'},
+  'Maintenance Team':{ badge: 'bg-orange-500/20  text-orange-300 border-orange-500/30',   dot: 'bg-orange-400' },
 };
 
 const DEFAULT_STYLE = { badge: 'bg-slate-700/50 text-slate-400 border-slate-600/40', dot: 'bg-slate-400' };
