@@ -2,10 +2,13 @@ import React, { useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
 import { 
   FiUsers, FiLayers, FiBox, FiCheckCircle, FiTool, 
   FiAlertTriangle, FiFileText, FiRefreshCw, FiDollarSign,
-  FiUserPlus, FiPlusSquare, FiSend, FiClock, FiShield
+  FiUserPlus, FiPlusSquare, FiSend, FiClock, FiShield,
+  FiCornerDownLeft, FiRepeat, FiBell, FiInfo, FiBookOpen,
+  FiSearch, FiCalendar, FiMail, FiX, FiCheck, FiUser, FiMessageSquare
 } from 'react-icons/fi';
 import { 
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip,
@@ -29,6 +32,168 @@ const Dashboard = () => {
   const isAdmin = user?.role === 'Admin';
   const isManager = user?.role === 'Asset Manager';
   const isDeptHead = user?.role === 'Department Head';
+  const isEmployee = user?.role === 'Employee';
+
+  // Employee specific states
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  
+  const [selectedAlloc, setSelectedAlloc] = useState(null);
+  const [availableAssets, setAvailableAssets] = useState([]);
+  const [loadingAssets, setLoadingAssets] = useState(false);
+  
+  // Forms
+  const [requestAssetId, setRequestAssetId] = useState('');
+  const [requestReturnDate, setRequestReturnDate] = useState('');
+  const [requestRemarks, setRequestRemarks] = useState('');
+  
+  const [returnRemarks, setReturnRemarks] = useState('');
+  const [transferEmployeeId, setTransferEmployeeId] = useState('');
+  const [transferRemarks, setTransferRemarks] = useState('');
+  
+  // Local simulations
+  const [employees, setEmployees] = useState([]);
+  const [localPendingReturns, setLocalPendingReturns] = useState([]); // list of allocation IDs
+  const [localPendingTransfers, setLocalPendingTransfers] = useState([]); // list of allocation IDs
+  const [notifications, setNotifications] = useState([
+    { id: 1, text: 'MacBook Pro 16" allocated to your profile.', date: '2026-07-01' },
+    { id: 2, text: 'Allocation system updated.', date: '2026-07-02' }
+  ]);
+  const [submittingAction, setSubmittingAction] = useState(false);
+
+  const fetchAvailableAssets = async () => {
+    setLoadingAssets(true);
+    try {
+      const res = await axios.get('http://localhost:5000/api/assets?status=Available');
+      setAvailableAssets(res.data.data || []);
+    } catch (err) {
+      console.warn('Failed to load available assets from server.');
+    } finally {
+      setLoadingAssets(false);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/employees');
+      setEmployees(res.data.data || []);
+    } catch (err) {
+      console.warn('Failed to load employee list from server.');
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === 'Employee') {
+      fetchAvailableAssets();
+      fetchEmployees();
+    }
+  }, [user]);
+
+  const handleRequestAssetSubmit = async (e) => {
+    e.preventDefault();
+    if (!requestAssetId || !requestReturnDate) {
+      toast.error('Please select an asset and expected return date.');
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(requestReturnDate) <= today) {
+      toast.error('Expected return date must be a future date.');
+      return;
+    }
+
+    setSubmittingAction(true);
+    try {
+      const payload = {
+        asset: requestAssetId,
+        allocatedTo: user.id || user._id,
+        expectedReturnDate: requestReturnDate,
+        remarks: requestRemarks
+      };
+      const res = await axios.post('http://localhost:5000/api/allocations', payload);
+      if (res.data && res.data.success) {
+        toast.success('Asset request submitted successfully!');
+        setShowRequestModal(false);
+        // Reset form
+        setRequestAssetId('');
+        setRequestReturnDate('');
+        setRequestRemarks('');
+        
+        // Add to notifications
+        const selectedAssetObj = availableAssets.find(a => a._id === requestAssetId);
+        const assetTag = selectedAssetObj ? selectedAssetObj.assetTag : 'New Asset';
+        const modelLabel = selectedAssetObj ? `${selectedAssetObj.model?.manufacturer} ${selectedAssetObj.model?.name}` : '';
+        
+        const newNotif = {
+          id: Date.now(),
+          text: `Submitted request for asset ${assetTag} (${modelLabel}).`,
+          date: new Date().toISOString().split('T')[0]
+        };
+        setNotifications(prev => [newNotif, ...prev]);
+        
+        // Refresh available assets & stats
+        fetchAvailableAssets();
+        fetchStats();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit asset request.');
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  const handleReturnSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedAlloc) return;
+    
+    // Simulate return request submission
+    setLocalPendingReturns(prev => [...prev, selectedAlloc._id]);
+    const newNotif = {
+      id: Date.now(),
+      text: `Requested return for asset tag ${selectedAlloc.asset?.assetTag || '—'}. Remarks: ${returnRemarks || 'none'}`,
+      date: new Date().toISOString().split('T')[0]
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    toast.success('Return request submitted to Department Head!');
+    setShowReturnModal(false);
+  };
+
+  const handleTransferSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedAlloc || !transferEmployeeId) {
+      toast.error('Please select a recipient employee.');
+      return;
+    }
+    const recipient = employees.find(emp => emp._id === transferEmployeeId);
+    const recipientName = recipient ? recipient.fullName : 'another employee';
+    
+    // Simulate transfer request submission
+    setLocalPendingTransfers(prev => [...prev, selectedAlloc._id]);
+    const newNotif = {
+      id: Date.now(),
+      text: `Requested transfer of asset tag ${selectedAlloc.asset?.assetTag || '—'} to ${recipientName}. Remarks: ${transferRemarks || 'none'}`,
+      date: new Date().toISOString().split('T')[0]
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    toast.success(`Transfer request to ${recipientName} submitted for approval!`);
+    setShowTransferModal(false);
+  };
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get('http://localhost:5000/api/dashboard/stats');
+      setStats(res.data.data);
+    } catch (err) {
+      console.warn('Backend server offline. Setting simulated sandbox stats.');
+      // Offline fallback is handled inside the stats query useEffect, but let's make sure it doesn't break
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRoleTheme = (role) => {
     switch (role) {
@@ -70,65 +235,147 @@ const Dashboard = () => {
         setStats(res.data.data);
       } catch (err) {
         console.warn('Backend server offline. Setting simulated sandbox stats.');
-        setStats({
-          statusCounts: {
-            total: 24,
-            available: 12,
-            allocated: 8,
-            maintenance: 3,
-            retired: 1,
-            employees: 18,
-            departments: 4,
-            pendingAllocations: 2,
-            pendingReturns: 1,
-            warrantyExpiringSoon: 4,
-            deptEmployees: 6,
-            deptAssets: 4,
-            allocatedDeptAssets: 3,
-            pendingRequests: 1
-          },
-          totalValue: 32490,
-          recentAllocations: [
-            {
-              _id: '1',
-              asset: { assetTag: 'AST-0001' },
-              allocatedTo: { fullName: 'Jane Doe', email: 'jane@assetflow.com' },
-              allocationDate: '2026-07-10T10:00:00Z',
-              status: 'Allocated'
+        if (user?.role === 'Employee') {
+          setStats({
+            statusCounts: {
+              allocatedCount: 2,
+              pendingCount: 1,
+              returnedCount: 3,
+              rejectedCount: 1,
+              totalAssets: 3
             },
-            {
-              _id: '2',
-              asset: { assetTag: 'AST-0002' },
-              allocatedTo: { fullName: 'John Smith', email: 'john@assetflow.com' },
-              allocationDate: '2026-07-11T12:00:00Z',
-              status: 'Allocated'
-            }
-          ],
-          recentEmployees: [
-            { _id: '1', fullName: 'Alice Johnson', email: 'alice@assetflow.com', department: { name: 'Engineering' } },
-            { _id: '2', fullName: 'Bob Carter', email: 'bob@assetflow.com', department: { name: 'Operations' } }
-          ],
-          recentAssets: [
-            { _id: '1', assetTag: 'AST-0001', category: { name: 'Workstations' }, model: { manufacturer: 'Apple', name: 'MacBook Pro 16' }, status: 'Allocated' },
-            { _id: '2', assetTag: 'AST-0002', category: { name: 'Monitors' }, model: { manufacturer: 'Dell', name: 'U2723QE' }, status: 'Available' }
-          ],
-          categoryDistribution: [
-            { categoryName: 'Workstations', count: 14 },
-            { categoryName: 'Mobile Devices', count: 7 },
-            { categoryName: 'Monitors', count: 3 }
-          ],
-          statusDistribution: [
-            { name: 'Available', value: 12 },
-            { name: 'Allocated', value: 8 },
-            { name: 'Maintenance', value: 3 },
-            { name: 'Retired', value: 1 }
-          ],
-          departmentDistribution: [
-            { departmentName: 'Engineering', count: 5 },
-            { departmentName: 'Product Management', count: 2 },
-            { departmentName: 'Operations', count: 1 }
-          ]
-        });
+            recentAllocations: [
+              {
+                _id: 'mock_alloc_emp_1',
+                asset: {
+                  _id: 'mock_asset_001',
+                  assetTag: 'AST-0001',
+                  serialNumber: 'SN-APL-MBP9988',
+                  status: 'Allocated',
+                  cost: 2499.00,
+                  purchaseDate: '2025-01-10T00:00:00.000Z',
+                  warrantyDate: '2028-01-10T00:00:00.000Z',
+                  vendor: 'Apple Business',
+                  qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                  category: { name: 'Workstations' },
+                  model: { name: 'MacBook Pro 16"', manufacturer: 'Apple', description: 'M3 Pro, 32GB RAM, 1TB SSD corporate build.' }
+                },
+                allocatedTo: { fullName: user.fullName || 'Demo Employee', email: user.email },
+                allocationDate: '2026-07-01T09:00:00Z',
+                expectedReturnDate: '2027-07-01T09:00:00Z',
+                status: 'Allocated',
+                remarks: 'Primary developer workstation'
+              },
+              {
+                _id: 'mock_alloc_emp_2',
+                asset: {
+                  _id: 'mock_asset_002',
+                  assetTag: 'AST-0002',
+                  serialNumber: 'SN-LEN-T148877',
+                  status: 'Available',
+                  cost: 1299.00,
+                  purchaseDate: '2025-02-15T00:00:00.000Z',
+                  warrantyDate: '2027-02-15T00:00:00.000Z',
+                  vendor: 'CDW Logistics',
+                  qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                  category: { name: 'Monitors' },
+                  model: { name: 'U2723QE', manufacturer: 'Dell', description: '27 inch 4K USB-C Hub Monitor' }
+                },
+                allocatedTo: { fullName: user.fullName || 'Demo Employee', email: user.email },
+                allocationDate: '2026-07-02T10:00:00Z',
+                expectedReturnDate: '2027-07-02T10:00:00Z',
+                status: 'Pending Approval',
+                remarks: 'External display request for office workspace'
+              },
+              {
+                _id: 'mock_alloc_emp_3',
+                asset: {
+                  _id: 'mock_asset_003',
+                  assetTag: 'AST-0003',
+                  serialNumber: 'SN-APL-IPH7766',
+                  status: 'Maintenance',
+                  cost: 999.00,
+                  purchaseDate: '2025-03-01T00:00:00.000Z',
+                  warrantyDate: '2026-03-01T00:00:00.000Z',
+                  vendor: 'Verizon Wireless',
+                  qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                  category: { name: 'Mobile Devices' },
+                  model: { name: 'iPhone 15 Pro', manufacturer: 'Apple', description: 'A17 Pro, 256GB storage, test bed device.' }
+                },
+                allocatedTo: { fullName: user.fullName || 'Demo Employee', email: user.email },
+                allocationDate: '2026-06-15T09:00:00Z',
+                expectedReturnDate: '2026-06-30T09:00:00Z',
+                actualReturnDate: '2026-06-30T15:00:00Z',
+                status: 'Returned',
+                remarks: 'Temporary test phone returned on-time'
+              }
+            ],
+            categoryDistribution: [
+              { categoryName: 'Workstations', count: 1 },
+              { categoryName: 'Monitors', count: 1 }
+            ]
+          });
+        } else {
+          setStats({
+            statusCounts: {
+              total: 24,
+              available: 12,
+              allocated: 8,
+              maintenance: 3,
+              retired: 1,
+              employees: 18,
+              departments: 4,
+              pendingAllocations: 2,
+              pendingReturns: 1,
+              warrantyExpiringSoon: 4,
+              deptEmployees: 6,
+              deptAssets: 4,
+              allocatedDeptAssets: 3,
+              pendingRequests: 1
+            },
+            totalValue: 32490,
+            recentAllocations: [
+              {
+                _id: '1',
+                asset: { assetTag: 'AST-0001' },
+                allocatedTo: { fullName: 'Jane Doe', email: 'jane@assetflow.com' },
+                allocationDate: '2026-07-10T10:00:00Z',
+                status: 'Allocated'
+              },
+              {
+                _id: '2',
+                asset: { assetTag: 'AST-0002' },
+                allocatedTo: { fullName: 'John Smith', email: 'john@assetflow.com' },
+                allocationDate: '2026-07-11T12:00:00Z',
+                status: 'Allocated'
+              }
+            ],
+            recentEmployees: [
+              { _id: '1', fullName: 'Alice Johnson', email: 'alice@assetflow.com', department: { name: 'Engineering' } },
+              { _id: '2', fullName: 'Bob Carter', email: 'bob@assetflow.com', department: { name: 'Operations' } }
+            ],
+            recentAssets: [
+              { _id: '1', assetTag: 'AST-0001', category: { name: 'Workstations' }, model: { manufacturer: 'Apple', name: 'MacBook Pro 16' }, status: 'Allocated' },
+              { _id: '2', assetTag: 'AST-0002', category: { name: 'Monitors' }, model: { manufacturer: 'Dell', name: 'U2723QE' }, status: 'Available' }
+            ],
+            categoryDistribution: [
+              { categoryName: 'Workstations', count: 14 },
+              { categoryName: 'Mobile Devices', count: 7 },
+              { categoryName: 'Monitors', count: 3 }
+            ],
+            statusDistribution: [
+              { name: 'Available', value: 12 },
+              { name: 'Allocated', value: 8 },
+              { name: 'Maintenance', value: 3 },
+              { name: 'Retired', value: 1 }
+            ],
+            departmentDistribution: [
+              { departmentName: 'Engineering', count: 5 },
+              { departmentName: 'Product Management', count: 2 },
+              { departmentName: 'Operations', count: 1 }
+            ]
+          });
+        }
       } finally {
         setLoading(false);
       }
@@ -635,8 +882,502 @@ const Dashboard = () => {
           </div>
 
         </div>
+      ) : isEmployee ? (
+        /* BRANCH 3: EMPLOYEE SELF-SERVICE DASHBOARD */
+        <div className="space-y-6">
+
+          {/* ── Welcome Banner ─────────────────────────────────── */}
+          <div className="relative overflow-hidden rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-blue-600/5 to-transparent p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(ellipse at 80% 50%, rgba(14,165,233,0.08) 0%, transparent 70%)'}} />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-sky-400 mb-1">Welcome back</p>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-100">{user?.fullName || 'Employee'}</h2>
+              <p className="text-[11px] text-slate-400 mt-1">{user?.email}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 z-10">
+              <button
+                id="emp-request-asset-btn"
+                onClick={() => { setShowRequestModal(true); }}
+                className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold rounded-lg bg-sky-500/15 text-sky-300 border border-sky-500/20 hover:bg-sky-500/25 transition-all duration-200"
+              >
+                <FiPlusSquare size={13} /> Request Asset
+              </button>
+              <button
+                id="emp-view-history-btn"
+                onClick={() => document.getElementById('emp-history-section')?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold rounded-lg bg-slate-700/40 text-slate-300 border border-slate-600/30 hover:bg-slate-700/60 transition-all duration-200"
+              >
+                <FiBookOpen size={13} /> History
+              </button>
+            </div>
+          </div>
+
+          {/* ── Stats Cards Row ─────────────────────────────────── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Active Assets', value: loading ? '…' : (stats?.statusCounts?.allocatedCount ?? 0), icon: <FiBox size={15}/>, color: 'sky' },
+              { label: 'Pending Requests', value: loading ? '…' : (stats?.statusCounts?.pendingCount ?? 0), icon: <FiClock size={15}/>, color: 'amber' },
+              { label: 'Returned', value: loading ? '…' : (stats?.statusCounts?.returnedCount ?? 0), icon: <FiCornerDownLeft size={15}/>, color: 'emerald' },
+              { label: 'Notifications', value: notifications.length, icon: <FiBell size={15}/>, color: 'violet' },
+            ].map((card, i) => (
+              <div key={i} className={`glass-card border border-slate-850 p-4 rounded-xl flex items-center justify-between`}>
+                <div className="space-y-1">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">{card.label}</span>
+                  <span className={`text-2xl font-extrabold text-${card.color}-400`}>{card.value}</span>
+                </div>
+                <div className={`p-2.5 bg-${card.color}-500/10 text-${card.color}-400 rounded-lg`}>
+                  {card.icon}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Profile Card + Category Chart ────────────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+            {/* Profile Card */}
+            <div className="glass-card border border-slate-850 rounded-2xl p-5 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center text-white font-extrabold text-lg shadow-lg">
+                  {(user?.fullName || 'E')[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-slate-100 text-sm leading-tight">{user?.fullName}</p>
+                  <p className="text-[10px] text-slate-400">{user?.email}</p>
+                </div>
+              </div>
+              <div className="space-y-2.5 text-[11px]">
+                {[
+                  { label: 'Role', value: user?.role || '—', icon: <FiShield size={11}/> },
+                  { label: 'Active Since', value: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A', icon: <FiCalendar size={11}/> },
+                  { label: 'Status', value: user?.isActive !== false ? 'Active' : 'Inactive', icon: <FiCheckCircle size={11}/> },
+                ].map((row, i) => (
+                  <div key={i} className="flex items-center justify-between py-1.5 border-b border-slate-800/50">
+                    <span className="flex items-center gap-1.5 text-slate-400">{row.icon} {row.label}</span>
+                    <span className="font-semibold text-slate-200">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Category Chart */}
+            <div className="lg:col-span-2 glass-card border border-slate-850 rounded-2xl p-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">My Asset Categories</p>
+              {stats?.categoryDistribution?.length > 0 ? (
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={stats.categoryDistribution.map(c => ({ name: c.categoryName, value: c.count }))}
+                      cx="50%" cy="50%"
+                      innerRadius={45} outerRadius={70}
+                      paddingAngle={4} dataKey="value"
+                    >
+                      {stats.categoryDistribution.map((_, idx) => (
+                        <Cell key={idx} fill={['#0ea5e9','#8b5cf6','#10b981','#f59e0b','#ef4444'][idx % 5]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background:'rgba(15,23,42,0.95)', border:'1px solid rgba(148,163,184,0.1)', borderRadius:8, fontSize:11 }}
+                      itemStyle={{ color:'#e2e8f0' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-40 text-slate-500 text-sm">No category data available.</div>
+              )}
+              {stats?.categoryDistribution?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {stats.categoryDistribution.map((c, idx) => (
+                    <span key={idx} className="flex items-center gap-1 text-[10px] text-slate-400">
+                      <span className="w-2 h-2 rounded-full inline-block" style={{ background: ['#0ea5e9','#8b5cf6','#10b981','#f59e0b','#ef4444'][idx % 5] }} />
+                      {c.categoryName} ({c.count})
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── My Assets ────────────────────────────────────────── */}
+          <div className="glass-card border border-slate-850 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">My Assets</p>
+              <button
+                id="emp-request-asset-btn-2"
+                onClick={() => setShowRequestModal(true)}
+                className="flex items-center gap-1 text-[10px] font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+              >
+                <FiPlusSquare size={12}/> Request New
+              </button>
+            </div>
+            {loading ? (
+              <div className="text-slate-500 text-sm text-center py-8">Loading assets…</div>
+            ) : stats?.recentAllocations?.filter(a => a.status === 'Allocated').length === 0 ? (
+              <div className="text-center py-10 text-slate-500 text-sm">No active assets allocated to you.</div>
+            ) : (
+              <div className="space-y-3">
+                {(stats?.recentAllocations || []).filter(a => a.status === 'Allocated').map(alloc => {
+                  const isPendingReturn = localPendingReturns.includes(alloc._id);
+                  const isPendingTransfer = localPendingTransfers.includes(alloc._id);
+                  return (
+                    <div key={alloc._id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/50 border border-slate-800/50 hover:border-sky-500/20 transition-all group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 rounded-lg bg-sky-500/10 text-sky-400 shrink-0">
+                          <FiBox size={14} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-200 text-sm truncate">
+                            {alloc.asset?.model?.manufacturer} {alloc.asset?.model?.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500 font-mono">{alloc.asset?.assetTag} · {alloc.asset?.serialNumber}</p>
+                          <p className="text-[10px] text-slate-500">{alloc.asset?.category?.name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isPendingReturn && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded border border-amber-500/20 bg-amber-500/5 text-amber-400">Return Pending</span>
+                        )}
+                        {isPendingTransfer && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded border border-violet-500/20 bg-violet-500/5 text-violet-400">Transfer Pending</span>
+                        )}
+                        <button
+                          id={`emp-details-btn-${alloc._id}`}
+                          title="View Details"
+                          onClick={() => { setSelectedAlloc(alloc); setShowDetailsModal(true); }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-all"
+                        >
+                          <FiInfo size={14}/>
+                        </button>
+                        {!isPendingReturn && !isPendingTransfer && (
+                          <>
+                            <button
+                              id={`emp-return-btn-${alloc._id}`}
+                              title="Request Return"
+                              onClick={() => { setSelectedAlloc(alloc); setReturnRemarks(''); setShowReturnModal(true); }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                            >
+                              <FiCornerDownLeft size={14}/>
+                            </button>
+                            <button
+                              id={`emp-transfer-btn-${alloc._id}`}
+                              title="Request Transfer"
+                              onClick={() => { setSelectedAlloc(alloc); setTransferEmployeeId(''); setTransferRemarks(''); setShowTransferModal(true); }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-violet-400 hover:bg-violet-500/10 transition-all"
+                            >
+                              <FiRepeat size={14}/>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Allocation History + Notifications ──────────────── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" id="emp-history-section">
+
+            {/* History Table */}
+            <div className="lg:col-span-2 glass-card border border-slate-850 rounded-2xl p-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-4">Allocation History</p>
+              {loading ? (
+                <div className="text-slate-500 text-sm text-center py-8">Loading…</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="text-left text-slate-500 uppercase text-[9px] tracking-wider border-b border-slate-800">
+                        <th className="pb-2">Asset</th>
+                        <th className="pb-2">Category</th>
+                        <th className="pb-2">Date</th>
+                        <th className="pb-2 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/40">
+                      {(stats?.recentAllocations || []).map(alloc => (
+                        <tr key={alloc._id} className="hover:bg-slate-900/20">
+                          <td className="py-2.5">
+                            <p className="font-semibold text-slate-200 font-mono">{alloc.asset?.assetTag || '—'}</p>
+                            <p className="text-[9px] text-slate-500">{alloc.asset?.model?.manufacturer} {alloc.asset?.model?.name}</p>
+                          </td>
+                          <td className="py-2.5 text-slate-400">{alloc.asset?.category?.name || '—'}</td>
+                          <td className="py-2.5 text-slate-400 font-mono">
+                            {alloc.allocationDate ? alloc.allocationDate.split('T')[0] : '—'}
+                          </td>
+                          <td className="py-2.5 text-right">
+                            <span className={`inline-block text-[8px] font-bold px-1.5 py-0.5 rounded border ${
+                              alloc.status === 'Allocated'
+                                ? 'border-sky-500/20 bg-sky-500/5 text-sky-400'
+                                : alloc.status === 'Returned'
+                                ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400'
+                                : alloc.status === 'Rejected'
+                                ? 'border-red-500/20 bg-red-500/5 text-red-400'
+                                : 'border-amber-500/20 bg-amber-500/5 text-amber-400'
+                            }`}>
+                              {alloc.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {(stats?.recentAllocations || []).length === 0 && (
+                        <tr><td colSpan={4} className="py-8 text-center text-slate-500">No allocation records.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Notifications Feed */}
+            <div className="glass-card border border-slate-850 rounded-2xl p-5 flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <FiBell size={13} className="text-violet-400"/>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Notifications</p>
+                {notifications.length > 0 && (
+                  <span className="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-400 border border-violet-500/20">
+                    {notifications.length}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 space-y-2.5 overflow-y-auto max-h-64 pr-1">
+                {notifications.length === 0 ? (
+                  <p className="text-slate-500 text-[11px] text-center py-6">No notifications yet.</p>
+                ) : notifications.map(n => (
+                  <div key={n.id} className="p-2.5 rounded-lg bg-slate-900/50 border border-slate-800/40 hover:border-violet-500/20 transition-all">
+                    <p className="text-[10px] text-slate-300 leading-snug">{n.text}</p>
+                    <p className="text-[9px] text-slate-600 mt-1">{n.date}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Asset Details Modal ──────────────────────────────── */}
+          {showDetailsModal && selectedAlloc && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-lg glass-card border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100">Asset Details</h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{selectedAlloc.asset?.model?.manufacturer} · {selectedAlloc.asset?.model?.name}</p>
+                  </div>
+                  <button id="emp-details-close" onClick={() => setShowDetailsModal(false)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-all">
+                    <FiX size={16}/>
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-[11px] mb-4">
+                  {[
+                    { label: 'Asset Tag', value: selectedAlloc.asset?.assetTag },
+                    { label: 'Serial Number', value: selectedAlloc.asset?.serialNumber },
+                    { label: 'Category', value: selectedAlloc.asset?.category?.name },
+                    { label: 'Vendor', value: selectedAlloc.asset?.vendor },
+                    { label: 'Purchase Date', value: selectedAlloc.asset?.purchaseDate ? selectedAlloc.asset.purchaseDate.split('T')[0] : '—' },
+                    { label: 'Warranty Until', value: selectedAlloc.asset?.warrantyDate ? selectedAlloc.asset.warrantyDate.split('T')[0] : '—' },
+                    { label: 'Cost', value: selectedAlloc.asset?.cost != null ? `$${Number(selectedAlloc.asset.cost).toLocaleString()}` : '—' },
+                    { label: 'Status', value: selectedAlloc.status },
+                  ].map((r, i) => (
+                    <div key={i} className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
+                      <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">{r.label}</p>
+                      <p className="font-semibold text-slate-200 break-all">{r.value || '—'}</p>
+                    </div>
+                  ))}
+                </div>
+                {selectedAlloc.asset?.qrCode && (
+                  <div className="flex flex-col items-center gap-2 p-3 rounded-xl bg-slate-900/50 border border-slate-800">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">QR Code</p>
+                    <img src={selectedAlloc.asset.qrCode} alt="Asset QR" className="w-24 h-24 rounded-lg bg-white p-1" />
+                  </div>
+                )}
+                {selectedAlloc.remarks && (
+                  <p className="mt-3 text-[10px] text-slate-400 bg-slate-900/40 border border-slate-800 rounded-lg p-2.5">
+                    <span className="text-slate-500 font-semibold">Remarks: </span>{selectedAlloc.remarks}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Request Asset Modal ──────────────────────────────── */}
+          {showRequestModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-md glass-card border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100">Request Asset</h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Submit a request for available equipment</p>
+                  </div>
+                  <button id="emp-req-modal-close" onClick={() => setShowRequestModal(false)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-all">
+                    <FiX size={16}/>
+                  </button>
+                </div>
+                <form onSubmit={handleRequestAssetSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Select Asset *</label>
+                    <select
+                      id="emp-select-asset"
+                      value={requestAssetId}
+                      onChange={e => setRequestAssetId(e.target.value)}
+                      required
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-sky-500/50 transition-colors"
+                    >
+                      <option value="">— Choose an asset —</option>
+                      {loadingAssets ? (
+                        <option disabled>Loading available assets…</option>
+                      ) : availableAssets.length === 0 ? (
+                        <option disabled>No available assets found</option>
+                      ) : availableAssets.map(a => (
+                        <option key={a._id} value={a._id}>
+                          {a.assetTag} — {a.model?.manufacturer} {a.model?.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Expected Return Date *</label>
+                    <input
+                      id="emp-return-date"
+                      type="date"
+                      value={requestReturnDate}
+                      onChange={e => setRequestReturnDate(e.target.value)}
+                      required
+                      min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-sky-500/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Remarks</label>
+                    <textarea
+                      id="emp-req-remarks"
+                      value={requestRemarks}
+                      onChange={e => setRequestRemarks(e.target.value)}
+                      placeholder="Reason for request (optional)"
+                      rows={3}
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[12px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-sky-500/50 transition-colors resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={() => setShowRequestModal(false)} className="flex-1 py-2 rounded-lg text-[12px] font-semibold text-slate-400 bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-700">Cancel</button>
+                    <button
+                      id="emp-req-submit"
+                      type="submit"
+                      disabled={submittingAction}
+                      className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+                    >
+                      {submittingAction ? 'Submitting…' : 'Submit Request'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ── Request Return Modal ─────────────────────────────── */}
+          {showReturnModal && selectedAlloc && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-md glass-card border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100">Request Return</h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{selectedAlloc.asset?.assetTag} — {selectedAlloc.asset?.model?.manufacturer} {selectedAlloc.asset?.model?.name}</p>
+                  </div>
+                  <button id="emp-return-modal-close" onClick={() => setShowReturnModal(false)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-all">
+                    <FiX size={16}/>
+                  </button>
+                </div>
+                <form onSubmit={handleReturnSubmit} className="space-y-4">
+                  <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-[11px] text-emerald-400">
+                    This will notify your Department Head to process the return of this asset.
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Return Remarks</label>
+                    <textarea
+                      id="emp-return-remarks"
+                      value={returnRemarks}
+                      onChange={e => setReturnRemarks(e.target.value)}
+                      placeholder="Reason for return, condition notes, etc. (optional)"
+                      rows={3}
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[12px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={() => setShowReturnModal(false)} className="flex-1 py-2 rounded-lg text-[12px] font-semibold text-slate-400 bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-700">Cancel</button>
+                    <button
+                      id="emp-return-submit"
+                      type="submit"
+                      className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 transition-all shadow-lg"
+                    >
+                      Request Return
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* ── Request Transfer Modal ───────────────────────────── */}
+          {showTransferModal && selectedAlloc && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-md glass-card border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-100">Request Transfer</h3>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{selectedAlloc.asset?.assetTag} — {selectedAlloc.asset?.model?.manufacturer} {selectedAlloc.asset?.model?.name}</p>
+                  </div>
+                  <button id="emp-transfer-modal-close" onClick={() => setShowTransferModal(false)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-all">
+                    <FiX size={16}/>
+                  </button>
+                </div>
+                <form onSubmit={handleTransferSubmit} className="space-y-4">
+                  <div className="p-3 rounded-xl bg-violet-500/5 border border-violet-500/15 text-[11px] text-violet-400">
+                    This will send a transfer request to your Department Head for approval.
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Transfer To *</label>
+                    <select
+                      id="emp-transfer-recipient"
+                      value={transferEmployeeId}
+                      onChange={e => setTransferEmployeeId(e.target.value)}
+                      required
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[12px] text-slate-200 focus:outline-none focus:border-violet-500/50 transition-colors"
+                    >
+                      <option value="">— Select recipient employee —</option>
+                      {employees.filter(e => e._id !== (user?.id || user?._id)).map(e => (
+                        <option key={e._id} value={e._id}>{e.fullName} ({e.email})</option>
+                      ))}
+                      {employees.length === 0 && <option disabled>No employees loaded</option>}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Transfer Remarks</label>
+                    <textarea
+                      id="emp-transfer-remarks"
+                      value={transferRemarks}
+                      onChange={e => setTransferRemarks(e.target.value)}
+                      placeholder="Reason for transfer (optional)"
+                      rows={3}
+                      className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-3 py-2 text-[12px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50 transition-colors resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={() => setShowTransferModal(false)} className="flex-1 py-2 rounded-lg text-[12px] font-semibold text-slate-400 bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-700">Cancel</button>
+                    <button
+                      id="emp-transfer-submit"
+                      type="submit"
+                      className="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 transition-all shadow-lg"
+                    >
+                      Submit Transfer
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
       ) : (
-        /* BRANCH 3: DEFAULT ADMIN / OTHER DASHBOARD */
+        /* BRANCH 4: DEFAULT ADMIN / OTHER DASHBOARD */
         <div className="space-y-6">
           
           {/* Admin Stats Cards */}
